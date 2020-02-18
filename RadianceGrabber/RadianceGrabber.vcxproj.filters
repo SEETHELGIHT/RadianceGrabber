@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Accel.cpp" />
+    <ClCompile Include="Unity\RenderAPI_OpenGLCoreES.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\RenderAPI_Vulkan.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\RenderingPlugin.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\RenderAPI.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\RenderAPI_D3D11.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\RenderAPI_D3D12.cpp">
+      <Filter>Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Unity\gl3w\gl3w.c">
+      <Filter>Unity\gl3w</Filter>
+    </ClCompile>
+    <ClCompile Include="Pipeline.cpp" />
+    <ClCompile Include="DLLEntry.cpp" />
+    <ClCompile Include="DeviceConfig.cpp" />
+    <ClCompile Include="Marshal.cpp" />
+    <ClCompile Include="DataTypes.cu" />
+    <ClCompile Include="Sample.cu" />
+    <ClCompile Include="Aggregate.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Accel.h" />
+    <ClInclude Include="Define.h" />
+    <ClInclude Include="Unity\Unity\IUnityGraphics.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityGraphicsD3D11.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityGraphicsD3D12.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityGraphicsD3D9.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityGraphicsMetal.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityGraphicsVulkan.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\Unity\IUnityInterface.h">
+      <Filter>Unity\Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\PlatformBase.h">
+      <Filter>Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\RenderAPI.h">
+      <Filter>Unity</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\gl3w\glcorearb.h">
+      <Filter>Unity\gl3w</Filter>
+    </ClInclude>
+    <ClInclude Include="Unity\gl3w\gl3w.h">
+      <Filter>Unity\gl3w</Filter>
+    </ClInclude>
+    <ClInclude Include="Marshal.h" />
+    <ClInclude Include="Pipeline.h" />
+    <ClInclude Include="DeviceConfig.h" />
+    <ClInclude Include="PTEntry.cuh" />
+    <ClInclude Include="DataTypes.cuh" />
+    <ClInclude Include="Sample.cuh" />
+    <ClInclude Include="Aggregate.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Unity">
+      <UniqueIdentifier>{46364b7a-26ac-40c3-8e26-fa83517eab05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Unity\Unity">
+      <UniqueIdentifier>{eb0da5f3-003b-4838-92d8-4c5e59916933}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Unity\gl3w">
+      <UniqueIdentifier>{e1bf6e5d-9faf-41ce-a6fc-a8a58de6e1d9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RadianceGrabber.def" />
+    <None Include="Unity\RenderAPI_Metal.mm">
+      <Filter>Unity</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="PTEntry.cu" />
+  </ItemGroup>
+</Project>
