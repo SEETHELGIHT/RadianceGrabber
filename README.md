@@ -14,7 +14,7 @@
 
 # Support at Unity
 
-- MeshRenderer, SkinnedMeshRenderer
-	- not support anything else..
-- mode: single image, recording
+- compatible render component : MeshRenderer, SkinnedMeshRenderer
+- mode: single image, record video
+- mesh compression must be unchecked.
 
