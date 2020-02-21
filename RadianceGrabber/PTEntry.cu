@@ -120,7 +120,7 @@ namespace RadGrabber
 				Inverse(q);
 				//Rotate(q, rayInMS.direction);
 
-				ASSERT(mc->submeshArrayPtr[sbidx].topology == eUnityMeshTopology::Triangles);
+				ASSERT((mc->submeshArrayPtr[sbidx].topology == eUnityMeshTopology::Triangles));
 				
 				int primitiveCount = mc->submeshArrayPtr[sbidx].indexCount / 3, start = mc->submeshArrayPtr[sbidx].indexCount;
 				for (int i = 0; i < primitiveCount; i+=3)
@@ -412,7 +412,7 @@ namespace RadGrabber
 		ColorRGBA32* deviceColorBuffer = nullptr;
 
 		ASSERT_IS_FALSE(cudaMalloc(&deviceColorBuffer, sizeof(ColorRGBA32) * param.itemCount));
-		ASSERT_IS_FALSE(cudaMemset(colorBuffer, 0, sizeof(ColorRGBA32) * param.itemCount));
+		ASSERT_IS_FALSE(cudaMemset(deviceColorBuffer, 0, sizeof(ColorRGBA32) * param.itemCount));
 
 		std::chrono::system_clock::time_point lastUpdateTime = std::chrono::system_clock::now();
 
@@ -423,9 +423,10 @@ namespace RadGrabber
 			for (int pixelIndex = 0; pixelIndex < hostReq->output.pixelBufferSize.x * hostReq->output.pixelBufferSize.y; pixelIndex += param.itemCount)
 			{
 				hostReq->output.GetPixelFromTexture(
+					deviceColorBuffer,
 					pixelIndex,
 					param.itemCount,
-					[](void* mappedReadBuffer, int pixelIndex, int itemCount, int texItemSize)
+					[](void* deviceColorBuffer, void* mappedReadBuffer, int pixelIndex, int itemCount, int texItemSize)
 					{
 						int copySize = texItemSize > pixelIndex + itemCount ? itemCount : texItemSize - (pixelIndex + 1);
 						ColorRGBA* colorReadBuffer = (ColorRGBA*)mappedReadBuffer;
@@ -438,9 +439,10 @@ namespace RadGrabber
 				//	samplingCount, limitPathLength, hostReq->opt.selectedCameraIndex, hostReq->output.pixelBufferSize);
 
 				hostReq->output.SetPixelToTexture(
+					deviceColorBuffer,
 					pixelIndex,
 					param.itemCount,
-					[](void* mappedWriteBuffer, int pixelIndex, int itemCount, int texItemSize)
+					[](void* deviceColorBuffer, void* mappedWriteBuffer, int pixelIndex, int itemCount, int texItemSize)
 					{
 						int copySize = texItemSize > pixelIndex + itemCount ? itemCount : texItemSize - (pixelIndex + 1);
 						ColorRGBA* colorWriteBuffer = (ColorRGBA*)mappedWriteBuffer;

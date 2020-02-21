@@ -21,7 +21,7 @@ namespace RadGrabber
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hostReq->input.skyboxMaterialBufferLen));
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.textureBuffer, sizeof(Texture2DChunk) * hostReq->input.textureBufferLen));
 
-		ASSERT_IS_FALSE(cudaMemcpy(*outDeviceInput, &deviceReqBuffer, sizeof(UnityFrameRequest), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		ASSERT_IS_FALSE(cudaMemcpy(*outDeviceInput, &hostReq->input, sizeof(UnityFrameRequest), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
 		for (int i = 0; i < hostReq->input.meshBufferLen; i++)
 		{
@@ -136,7 +136,7 @@ namespace RadGrabber
 	__host__ void FreeDeviceMem(UnityFrameInput* deviceInput)
 	{
 		UnityFrameInput input;
-		ASSERT_IS_FALSE(cudaMemcpy(&req, deviceInput, sizeof(UnityFrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+		ASSERT_IS_FALSE(cudaMemcpy(&input, deviceInput, sizeof(UnityFrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 		for (int i = 0; i < input.meshBufferLen; i++)
 		{
@@ -167,7 +167,7 @@ namespace RadGrabber
 		for (int i = 0; i < input.meshRendererBufferLen; i++)
 		{
 			MeshRendererChunk c;
-			ASSERT_IS_FALSE(cudaMemcpy(&c, req.input.meshRendererBuffer + i, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			ASSERT_IS_FALSE(cudaMemcpy(&c, input.meshRendererBuffer + i, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 			ASSERT_IS_FALSE(cudaFree(c.materialArrayPtr));
 		}
@@ -184,7 +184,7 @@ namespace RadGrabber
 		for (int i = 0; i < input.textureBufferLen; i++)
 		{
 			Texture2DChunk c;
-			ASSERT_IS_FALSE(cudaMemcpy(&c, req.input.textureBuffer + i, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			ASSERT_IS_FALSE(cudaMemcpy(&c, input.textureBuffer + i, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 			struct cudaResourceDesc resDesc;
 			ASSERT_IS_FALSE(cudaGetTextureObjectResourceDesc(&resDesc, reinterpret_cast<cudaTextureObject_t>(c.pixelPtr)));
@@ -202,8 +202,6 @@ namespace RadGrabber
 		ASSERT_IS_FALSE(cudaFree(input.skinnedMeshRendererBuffer));
 		ASSERT_IS_FALSE(cudaFree(input.skyboxMaterialBuffer));
 		ASSERT_IS_FALSE(cudaFree(input.textureBuffer));
-
-		ASSERT_IS_FALSE(cudaFree(outputData.colorBuffer));
 
 		ASSERT_IS_FALSE(cudaFree(deviceInput));
 	}

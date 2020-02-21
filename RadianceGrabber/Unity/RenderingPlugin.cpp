@@ -69,7 +69,7 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 	// Create graphics API implementation upon initialization
 	if (eventType == kUnityGfxDeviceEventInitialize)
 	{
-		assert(s_CurrentAPI == NULL);
+		assert(RenderAPI::GetRenderAPI() == NULL);
 		s_DeviceType = s_Graphics->GetRenderer();
 		RenderAPI::InitializeAPI(s_DeviceType);
 	}

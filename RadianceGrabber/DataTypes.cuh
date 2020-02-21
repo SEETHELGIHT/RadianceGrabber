@@ -610,14 +610,14 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ Quaternion(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {  }
 		__forceinline__ __device__ __host__ Quaternion(const Quaternion& q) : x(q.x), y(q.y), z(q.z), w(q.w) { }
 
-		__forceinline__ __device__ __host__ Quaternion operator*(const Quaternion& q)
-		{
-			return Quaternion(
-				w*q.x + x * q.w + y * q.z - z * q.y,
-				w*q.y + y * q.w + z * q.x - x * q.z,
-				w*q.z + z * q.w + x * q.y - y * q.x,
-				w*q.w - x * q.x - y * q.y - z * q.z);
-		}
+		//__forceinline__ __device__ __host__ Quaternion operator*(const Quaternion& q)
+		//{
+		//	return Quaternion(
+		//		w*q.x + x * q.w + y * q.z - z * q.y,
+		//		w*q.y + y * q.w + z * q.x - x * q.z,
+		//		w*q.z + z * q.w + x * q.y - y * q.x,
+		//		w*q.w - x * q.x - y * q.y - z * q.z);
+		//}
 
 		__forceinline__ __device__ __host__ Quaternion operator/(const float f)
 		{
@@ -643,17 +643,6 @@ namespace RadGrabber
 		q.z = -q.z;
 	}
 
-	__forceinline__ __device__ __host__ void Rotate(const Quaternion& q1, INOUT Vector3f& v)
-	{
-		// implication : quaternion is normalized.
-		Quaternion p(v.x, v.y, v.z, 0), q2(-q1.x, -q1.y, -q1.z, q1.w), q;
-
-		q = (q1 * p * q2);
-		v.x = q.x;
-		v.y = q.y;
-		v.z = q.z;
-	}
-
 	__forceinline__ __device__ __host__ Quaternion operator*(const Quaternion& q1, const Quaternion& q2)
 	{
 		return Quaternion(
@@ -661,6 +650,18 @@ namespace RadGrabber
 			q2.w*q1.y + q2.y * q1.w + q2.z * q1.x - q2.x * q1.z,
 			q2.w*q1.z + q2.z * q1.w + q2.x * q1.y - q2.y * q1.x,
 			q2.w*q1.w - q2.x * q1.x - q2.y * q1.y - q2.z * q1.z);
+	}
+
+	__forceinline__ __device__ __host__ void Rotate(const Quaternion& q1, INOUT Vector3f& v)
+	{
+		// implication : quaternion is normalized.
+		Quaternion p(v.x, v.y, v.z, 0), q2(-q1.x, -q1.y, -q1.z, q1.w), q;
+
+		q = q1 * p;
+		q = q * q2;
+		v.x = q.x;
+		v.y = q.y;
+		v.z = q.z;
 	}
 
 	struct ColorRGB

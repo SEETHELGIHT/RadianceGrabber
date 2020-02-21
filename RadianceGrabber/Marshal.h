@@ -585,21 +585,21 @@ namespace RadGrabber
 		Vector2i pixelBufferSize;
 		void* pixelBuffer;
 
-		bool GetPixelFromTexture(int pixelIndex, int itemCount, DEL void (*getPixelFunc)(void*, int, int, int))
+		bool GetPixelFromTexture(void* sourceBuffer, int pixelIndex, int itemCount, DEL void (*getPixelFunc)(void*, void*, int, int, int))
 		{
 			ASSERT(getPixelFunc);
 
-			getPixelFunc(RenderAPI::GetRenderAPI()->BeginReadTexture2D(pixelBuffer), pixelIndex, itemCount, pixelBufferSize.x * pixelBufferSize.y);
+			getPixelFunc(sourceBuffer, RenderAPI::GetRenderAPI()->BeginReadTexture2D(pixelBuffer), pixelIndex, itemCount, pixelBufferSize.x * pixelBufferSize.y);
 			RenderAPI::GetRenderAPI()->EndReadTexture2D(pixelBuffer);
 			
 			return true;
 		}
 
-		bool SetPixelToTexture(int pixelIndex, int itemCount, DEL void(*setPixelFunc)(void*, int, int, int))
+		bool SetPixelToTexture(void* targetBuffer, int pixelIndex, int itemCount, DEL void(*setPixelFunc)(void*, void*, int, int, int))
 		{
 			ASSERT(setPixelFunc);
 
-			setPixelFunc(RenderAPI::GetRenderAPI()->BeginWriteTexture2D(pixelBuffer), pixelIndex, itemCount, pixelBufferSize.x * pixelBufferSize.y);
+			setPixelFunc(targetBuffer, RenderAPI::GetRenderAPI()->BeginWriteTexture2D(pixelBuffer), pixelIndex, itemCount, pixelBufferSize.x * pixelBufferSize.y);
 			RenderAPI::GetRenderAPI()->EndWriteTexture2D(pixelBuffer);
 
 			return true;
