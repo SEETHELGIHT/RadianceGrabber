@@ -84,12 +84,12 @@
     [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi, Pack = 4)]
     public partial struct LightChunk
     {
-        [FieldOffset(0), MarshalAs(UnmanagedType.SysInt)]
-        public LightType type;
-        [FieldOffset(4)]
+        [FieldOffset(0)]
         public Vector3 position;
-        [FieldOffset(16)]
+        [FieldOffset(12)]
         public Quaternion quaternion;
+        [FieldOffset(28), MarshalAs(UnmanagedType.SysInt)]
+        public LightType type;
         [FieldOffset(32)]
         public float intensity;
         [FieldOffset(36)]
@@ -319,26 +319,23 @@
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public unsafe partial struct FrameInput
     {
-        public int selectedCameraIndex;
-        public int maxSamplingCount;
-
-        public int cameraBufferLen;
-        public int skyboxMaterialBufferLen;
-        public int lightBufferLen;
         public int meshBufferLen;
-        public int skinnedMeshBufferLen;
-        public int meshRendererBufferLen;
-        public int skinnedMeshRendererBufferLen;
-        public int textureBufferLen;
-        public int materialBufferLen;
-        public IntPtr cameraBuffer;                 /*CameraChunk*/
-        public IntPtr skyboxMaterialBuffer;         /*SkyboxChunk*/
-        public IntPtr lightBuffer;                  /*LightChunk*/
         public IntPtr meshBuffer;                   /*MeshChunk*/
-        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
+        public int meshRendererBufferLen;
         public IntPtr meshRendererBuffer;           /*MeshRendererChunk*/
+        public int cameraBufferLen;
+        public IntPtr cameraBuffer;                 /*CameraChunk*/
+        public int skinnedMeshBufferLen;
+        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
+        public int skinnedMeshRendererBufferLen;
         public IntPtr skinnedMeshRendererBuffer;    /*SkinnedMeshREndererChunk*/
+        public int skyboxMaterialBufferLen;
+        public IntPtr skyboxMaterialBuffer;         /*SkyboxChunk*/
+        public int lightBufferLen;
+        public IntPtr lightBuffer;                  /*LightChunk*/
+        public int textureBufferLen;
         public IntPtr textureBuffer;                /*TextureChunk*/
+        public int materialBufferLen;
         public IntPtr materialBuffer;               /*MaterialChunk*/
     }
 

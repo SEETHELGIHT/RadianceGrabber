@@ -1,11 +1,7 @@
-#include <d3d11.h>
-#include <curand_kernel.h>
-
-#pragma once
-
 #include "DataTypes.cuh"
 #include "Unity/RenderAPI.h"
 
+#pragma once
 
 namespace RadGrabber
 {
@@ -274,9 +270,9 @@ namespace RadGrabber
 
 	struct LightChunk
 	{
-		eUnityLightType			type;
 		Vector3f				position;
 		Quaternion				quaternion;
+		eUnityLightType			type;
 		float					intensity;
 		float					indirectMultiplier;
 		int						cullingMask;
@@ -311,6 +307,9 @@ namespace RadGrabber
 				break;
 			}
 		}
+
+		__host__ __device__ bool IntersectRay(const Ray & ray, SurfaceIntersection& isect, float& intersectDistance);
+		__host__ __device__ bool GetBoundingBox(Bounds& bb);
 	};
 
 	/// <summary>
@@ -392,7 +391,7 @@ namespace RadGrabber
 			*/
 		}
 
-		__forceinline__ __device__ inline __host__  void GetRayDirection(IN const Texture2DChunk* textureBuffer, IN const SurfaceIntersection* isect, OUT Vector3f& direction) const
+		__forceinline__ __device__ __host__  void GetRayDirection(IN const Texture2DChunk* textureBuffer, IN const SurfaceIntersection* isect, OUT Vector3f& direction) const
 		{
 			/*
 				TODO:: Ray 방향 계산
@@ -426,7 +425,6 @@ namespace RadGrabber
 		Quaternion				quaternion;
 		Vector3f				scale;
 		int						meshRefIndex;
-
 		Bounds					boundingBox;
 
 		int						materialCount;
@@ -445,7 +443,6 @@ namespace RadGrabber
 		Quaternion				quaternion;
 		Vector3f				scale;
 		int						skinnedMeshRefIndex;
-
 		Bounds					boundingBox;
 
 		int						materialCount;
@@ -549,29 +546,47 @@ namespace RadGrabber
 		{}
 	};
 
-	struct UnityFrameInput
+	struct GeometryInput
 	{
-		int cameraBufferLen;
-		int skyboxMaterialBufferLen;
-		int lightBufferLen;
 		int meshBufferLen;
-		int skinnedMeshBufferLen;
-		int meshRendererBufferLen;
-		int skinnedMeshRendererBufferLen;
-		int textureBufferLen;
-		int materialBufferLen;
-		CameraChunk* cameraBuffer;
-		SkyboxChunk* skyboxMaterialBuffer;
-		LightChunk* lightBuffer;
 		MeshChunk* meshBuffer;
-		MeshChunk* skinnedMeshBuffer;
+		int meshRendererBufferLen;
 		MeshRendererChunk* meshRendererBuffer;
+		int lightBufferLen;
+		LightChunk* lightBuffer;
+		int cameraBufferLen;
+		CameraChunk* cameraBuffer;
+		int skinnedMeshBufferLen;
+		MeshChunk* skinnedMeshBuffer;
+		int skinnedMeshRendererBufferLen;
 		SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
+
+		GeometryInput() {}
+	};
+
+	struct FrameInput
+	{
+		int meshBufferLen;
+		MeshChunk* meshBuffer;
+		int meshRendererBufferLen;
+		MeshRendererChunk* meshRendererBuffer;
+		int lightBufferLen;
+		LightChunk* lightBuffer;
+		int cameraBufferLen;
+		CameraChunk* cameraBuffer;
+		int skinnedMeshBufferLen;
+		MeshChunk* skinnedMeshBuffer;
+		int skinnedMeshRendererBufferLen;
+		SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
+		int skyboxMaterialBufferLen;
+		SkyboxChunk* skyboxMaterialBuffer;
+		int textureBufferLen;
 		Texture2DChunk* textureBuffer;
+		int materialBufferLen;
 		MaterialChunk* materialBuffer;
 
-		__host__ __device__ UnityFrameInput() {}
-		__host__ __device__ UnityFrameInput(const UnityFrameInput& c) :
+		__host__ __device__ FrameInput() {}
+		__host__ __device__ FrameInput(const FrameInput& c) :
 			cameraBufferLen(c.cameraBufferLen), skyboxMaterialBufferLen(c.skyboxMaterialBufferLen), lightBufferLen(c.lightBufferLen),
 			meshBufferLen(c.meshBufferLen), skinnedMeshBufferLen(c.skinnedMeshBufferLen), meshRendererBufferLen(c.meshRendererBufferLen),
 			skinnedMeshRendererBufferLen(c.skinnedMeshRendererBufferLen), textureBufferLen(c.textureBufferLen), materialBufferLen(c.materialBufferLen),
@@ -579,8 +594,18 @@ namespace RadGrabber
 			meshBuffer(c.meshBuffer), skinnedMeshBuffer(c.skinnedMeshBuffer), meshRendererBuffer(c.meshRendererBuffer),
 			skinnedMeshRendererBuffer(c.skinnedMeshRendererBuffer), textureBuffer(c.textureBuffer), materialBuffer(c.materialBuffer)
 		{}
+
+		GeometryInput* GetGeometry()
+		{
+			return reinterpret_cast<GeometryInput*>(this);
+		}
+
+		static GeometryInput* GetGeometryFromFrame(FrameInput* p)
+		{
+			return reinterpret_cast<GeometryInput*>(p);
+		}
 	};
-	struct UnityFrameOutput
+	struct FrameOutput
 	{
 		Vector2i pixelBufferSize;
 		void* pixelBuffer;
@@ -605,19 +630,19 @@ namespace RadGrabber
 			return true;
 		}
 
-		__host__ __device__ UnityFrameOutput() {}
-		__host__ __device__ UnityFrameOutput(const UnityFrameOutput& c) :
+		__host__ __device__ FrameOutput() {}
+		__host__ __device__ FrameOutput(const FrameOutput& c) :
 			pixelBufferSize(c.pixelBufferSize), pixelBuffer(c.pixelBuffer)
 		{}
 	};
-	struct UnityFrameRequest
+	struct FrameRequest
 	{
 		FrameRequestOption opt;
-		UnityFrameInput input;
-		UnityFrameOutput output;
+		FrameInput input;
+		FrameOutput output;
 
-		__host__ __device__ UnityFrameRequest() {}
-		__host__ __device__ UnityFrameRequest(const UnityFrameRequest& c) : opt(c.opt), input(c.input), output(c.output)
+		__host__ __device__ FrameRequest() {}
+		__host__ __device__ FrameRequest(const FrameRequest& c) : opt(c.opt), input(c.input), output(c.output)
 		{}
 	};
 
