@@ -95,6 +95,8 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <ClInclude Include="Accel.h" />
     <ClInclude Include="DeviceConfig.h" />
     <ClInclude Include="Aggregate.h" />
+    <ClInclude Include="Integrator.h" />
+    <ClInclude Include="Interfaces.h" />
     <ClInclude Include="Marshal.h" />
     <ClInclude Include="DataTypes.cuh" />
     <ClInclude Include="Define.h" />
@@ -119,6 +121,7 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <ClCompile Include="DataTypes.cu" />
     <ClCompile Include="DeviceConfig.cpp" />
     <ClCompile Include="DLLEntry.cpp" />
+    <ClCompile Include="Integrator.cpp" />
     <ClCompile Include="Marshal.cpp" />
     <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="Sample.cu" />
@@ -144,6 +147,9 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="PTEntry.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="TODO.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

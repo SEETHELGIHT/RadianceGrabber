@@ -30,6 +30,7 @@
     <ClCompile Include="DataTypes.cu" />
     <ClCompile Include="Sample.cu" />
     <ClCompile Include="Aggregate.cpp" />
+    <ClCompile Include="Integrator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Accel.h" />
@@ -74,6 +75,8 @@
     <ClInclude Include="DataTypes.cuh" />
     <ClInclude Include="Sample.cuh" />
     <ClInclude Include="Aggregate.h" />
+    <ClInclude Include="Interfaces.h" />
+    <ClInclude Include="Integrator.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Unity">
@@ -94,5 +97,8 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="PTEntry.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="TODO.txt" />
   </ItemGroup>
 </Project>

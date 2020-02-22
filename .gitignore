@@ -397,3 +397,8 @@ MigrationBackup/
 */Logs/*
 */Logs
 */Temp
+
+# Radgrabber
+
+UnityExampleProjects/*RT/Assets/Plugins/RadianceGrabber.dll
+
