@@ -29,6 +29,7 @@ namespace RadGrabber
 				Type x;
 				Type y;
 			};
+			Type dataByType[2];
 			byte data[2 * sizeof(Type)];
 		};
 
@@ -41,12 +42,12 @@ namespace RadGrabber
 
 		__forceinline__ __device__ __host__ Type& operator[] (unsigned int i)
 		{
-			return data[i & 0x01];
+			return dataByType[i & 0x01];
 		}
 
 		__forceinline__ __device__ __host__ const Type& operator[] (unsigned int i) const
 		{
-			return data[i & 0x01];
+			return dataByType[i & 0x01];
 		}
 
 		__forceinline__ __device__ __host__ const Vector2<Type>& operator+() const { return *this; }
@@ -83,8 +84,8 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ Vector2<Type> normalized() const { return *this / magnitude(); }
 		__forceinline__ __device__ __host__ Vector2<Type>& normalize() { return *this /= magnitude(); }
 
-		__forceinline__ __device__ __host__ static Vector2<Type> zero() { return Vector2<Type>(0, 0); }
-		__forceinline__ __device__ __host__ static Vector2<Type> one() { return Vector2<Type>(1, 1); }
+		__forceinline__ __device__ __host__ static Vector2<Type> Zero() { return Vector2<Type>(0, 0); }
+		__forceinline__ __device__ __host__ static Vector2<Type> One() { return Vector2<Type>(1, 1); }
 	};
 
 	template <typename Type>
@@ -170,6 +171,7 @@ namespace RadGrabber
 				Type y;
 				Type z;
 			};
+			Type dataByType[3];
 			byte data[3 * sizeof(Type)];
 		};
 
@@ -182,12 +184,12 @@ namespace RadGrabber
 
 		__forceinline__ __device__ __host__ Type& operator[] (unsigned int i)
 		{
-			return data[i % 3];
+			return dataByType[i % 3];
 		}
 
 		__forceinline__ __device__ __host__ const Type& operator[] (unsigned int i) const
 		{
-			return data[i % 3];
+			return dataByType[i % 3];
 		}
 
 		__forceinline__ __device__ __host__ const Vector3<Type>& operator+() const { return *this; }
@@ -228,8 +230,8 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ Vector3<Type> normalized() const { return *this / magnitude(); }
 		__forceinline__ __device__ __host__ Vector3<Type>& normalize() { return *this /= magnitude(); }
 
-		__forceinline__ __device__ __host__ static Vector3<Type> zero() { return Vector3<Type>(0, 0, 0); }
-		__forceinline__ __device__ __host__ static Vector3<Type> one() { return Vector3<Type>(1, 1, 1); }
+		__forceinline__ __device__ __host__ static Vector3<Type> Zero() { return Vector3<Type>(0, 0, 0); }
+		__forceinline__ __device__ __host__ static Vector3<Type> One() { return Vector3<Type>(1, 1, 1); }
 	};
 
 	template <typename Type>
@@ -418,6 +420,7 @@ namespace RadGrabber
 				Type z;
 				Type w;
 			};
+			Type dataByType[4];
 			byte data[4 * sizeof(Type)];
 		};
 
@@ -430,12 +433,12 @@ namespace RadGrabber
 
 		__forceinline__ __device__ __host__ Type& operator[] (unsigned int i)
 		{
-			return data[i & 0x03];
+			return dataByType[i & 0x03];
 		}
 
 		__forceinline__ __device__ __host__ const Type& operator[] (unsigned int i) const
 		{
-			return data[i & 0x03];
+			return dataByType[i & 0x03];
 		}
 
 		__forceinline__ __device__ __host__ const Vector4<Type>& operator+() const { return *this; }
@@ -480,8 +483,8 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ Vector4<Type> normalized() const { return *this / magnitude(); }
 		__forceinline__ __device__ __host__ Vector4<Type>& normalize() { return *this /= magnitude(); }
 
-		__forceinline__ __device__ __host__ static Vector4<Type> zero() { return Vector4<Type>(0, 0, 0, 0); }
-		__forceinline__ __device__ __host__ static Vector4<Type> one() { return Vector4<Type>(1, 1, 1, 1); }
+		__forceinline__ __device__ __host__ static Vector4<Type> Zero() { return Vector4<Type>(0, 0, 0, 0); }
+		__forceinline__ __device__ __host__ static Vector4<Type> One() { return Vector4<Type>(1, 1, 1, 1); }
 	};
 
 	template <typename Type>
@@ -610,15 +613,6 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ Quaternion(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {  }
 		__forceinline__ __device__ __host__ Quaternion(const Quaternion& q) : x(q.x), y(q.y), z(q.z), w(q.w) { }
 
-		//__forceinline__ __device__ __host__ Quaternion operator*(const Quaternion& q)
-		//{
-		//	return Quaternion(
-		//		w*q.x + x * q.w + y * q.z - z * q.y,
-		//		w*q.y + y * q.w + z * q.x - x * q.z,
-		//		w*q.z + z * q.w + x * q.y - y * q.x,
-		//		w*q.w - x * q.x - y * q.y - z * q.z);
-		//}
-
 		__forceinline__ __device__ __host__ Quaternion operator/(const float f)
 		{
 			ASSERT(f != 0);
@@ -664,6 +658,19 @@ namespace RadGrabber
 		v.z = q.z;
 	}
 
+	__forceinline__ __device__ __host__ Vector3f operator*(const Quaternion& q1, const Vector3f& v1)
+	{
+		Vector3f v = v1;
+		Rotate(q1, v);
+		return v;
+	}
+
+	__forceinline__ __device__ __host__ Vector3f& operator*(const Quaternion& q1, Vector3f& v1)
+	{
+		Rotate(q1, v1);
+		return v1;
+	}
+
 	struct ColorRGB
 	{
 		union
@@ -699,6 +706,15 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ ColorRGBA() : r(0), g(0), b(0), a(0) {}
 		__forceinline__ __device__ __host__ ColorRGBA(float r, float g, float b, float a) : r(r), g(g), b(b), a(a) {}
 		__forceinline__ __device__ __host__ ColorRGBA(const ColorRGBA& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+
+		__forceinline__ __device__ __host__ static ColorRGBA One()
+		{
+			return ColorRGBA(1, 1, 1, 1);
+		}
+		__forceinline__ __device__ __host__ static ColorRGBA Zero()
+		{
+			return ColorRGBA(1, 1, 1, 1);
+		}
 	};
 
 	struct ColorRGBA32
@@ -718,6 +734,15 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ ColorRGBA32() : r(0), g(0), b(0), a(0) {}
 		__forceinline__ __device__ __host__ ColorRGBA32(byte r, byte g, byte b, byte a) : r(r), g(g), b(b), a(a) {}
 		__forceinline__ __device__ __host__ ColorRGBA32(const ColorRGBA32& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+
+		__forceinline__ __device__ __host__ static ColorRGBA32 One()
+		{
+			return ColorRGBA32(1, 1, 1, 1);
+		}
+		__forceinline__ __device__ __host__ static ColorRGBA32 Zero()
+		{
+			return ColorRGBA32(1, 1, 1, 1);
+		}
 	};
 
 	/*
@@ -776,6 +801,29 @@ namespace RadGrabber
 			this->v3 = v3;
 		}
 
+
+		__forceinline__ __device__ __host__ Vector3f TransformPoint(const Vector3f& pt)
+		{
+			Vector3f result;
+			result.x = m00 * pt.x + m01 * pt.y + m02 * pt.z + m03;
+			result.y = m10 * pt.x + m11 * pt.y + m12 * pt.z + m13;
+			result.z = m20 * pt.x + m21 * pt.y + m22 * pt.z + m23;
+			float num = m30 * pt.x + m31 * pt.y + m32 * pt.z + m33;
+			num = 1.f / num;
+			result.x *= num;
+			result.y *= num;
+			result.z *= num;
+			return result;
+		}
+		__forceinline__ __device__ __host__ Vector3f TransformVector(const Vector3f& v)
+		{
+			Vector3f result;
+			result.x = m00 * v.x + m01 * v.y + m02 * v.z;
+			result.y = m10 * v.x + m11 * v.y + m12 * v.z;
+			result.z = m20 * v.x + m21 * v.y + m22 * v.z;
+			return result;
+		}
+
 		__forceinline__ __device__ __host__ static Matrix4x4 GetIdentity()
 		{
 			Matrix4x4 m;
@@ -787,6 +835,7 @@ namespace RadGrabber
 			Matrix4x4 m;
 			return m;
 		}
+
 	};
 
 	struct Ray
@@ -823,7 +872,9 @@ namespace RadGrabber
 
 		__forceinline__ __device__ __host__ bool Intersect(const Ray& r)
 		{
-			// TODO:: Intersect. Bound vs Ray 
+			/*
+				TODO:: Intersect. Bound vs Ray
+			*/ 
 
 			return false;
 		}
@@ -834,11 +885,24 @@ namespace RadGrabber
 		Vector3f position;
 		Vector3f normal;
 		Vector3f tangent;
-		Vector2f uv;
-		int emitted : 1;
-		int materialIndex : 31;
-		int skinnedRenderer : 1;
-		int rendererIndex : 31;
+		union
+		{
+			struct
+			{
+				int isGeometry : 1;
+				int skinnedRenderer : 1;
+				int rendererIndex : 30;
+				Vector2f uv;
+			};
+			struct
+			{
+				int isNotLight : 1;
+				int lightIndex : 31;
+				Vector3f color;
+			};
+		};
+
+		SurfaceIntersection() {}
 	};
 
 }
