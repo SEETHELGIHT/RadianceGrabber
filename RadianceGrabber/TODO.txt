@@ -1,0 +1,5 @@
+1. BVH 생성 시 MeshRenderer, SkinnedMeshRenderer, Light 의 Transformation vs Mesh 리스트로 나누어서 해야함
+2. MLT 구현 해야함. 
+	2.1. Path 생성 시, 추가 메모리 공간 할당 어케 할것?
+3. 연속 이미지 생성시 입력 데이터 구조 어떻게 계산?
+4. Incremental Sampling 구현 바꾸기
