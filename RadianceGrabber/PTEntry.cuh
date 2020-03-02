@@ -2,10 +2,10 @@
 
 namespace RadGrabber
 {
-	struct UnityFrameRequest;
-	struct UnityFrameInput;
+	struct FrameRequest;
+	struct FrameInput;
 
-	int IncrementalPTSampling(UnityFrameRequest* hostReq, UnityFrameInput* deviceReq);
-	int IncrementalPTSamplingWithBVH(UnityFrameRequest* hostReq, UnityFrameInput* deviceReq);
+	int IncrementalPTSampling(FrameRequest* hostReq, FrameInput* deviceReq);
+	int IncrementalPTSamplingWithBVH(FrameRequest* hostReq, FrameInput* deviceReq);
 
 }

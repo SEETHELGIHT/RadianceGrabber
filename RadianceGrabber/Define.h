@@ -1,9 +1,11 @@
-#pragma once
-
+#include <d3d11.h>
+#pragma warning( disable : 4819 )
+#include <curand_kernel.h>
 #include <cassert>
-
 #pragma warning( disable : 4819 )
 #include <cuda_runtime.h>
+
+#pragma once
 
 namespace RadGrabber
 {
@@ -25,7 +27,6 @@ namespace RadGrabber
 #define OUT_BUF 
 #define IN_BUF 
 #define DEL 
-#define PURE =0
 
 	typedef char byte;
 

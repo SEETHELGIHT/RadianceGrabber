@@ -4,12 +4,12 @@
 
 namespace RadGrabber
 {
-	__host__ void AllocateDeviceMem(__host__ UnityFrameRequest* hostReq, __device__ UnityFrameInput** outDeviceInput)
+	__host__ void AllocateDeviceMem(__host__ FrameRequest* hostReq, __device__ FrameInput** outDeviceInput)
 	{
 		ASSERT_IS_FALSE(outDeviceInput);
 
-		UnityFrameInput deviceInputBuffer = hostReq->input;
-		ASSERT_IS_FALSE(cudaMalloc(outDeviceInput, sizeof(UnityFrameRequest)));
+		FrameInput deviceInputBuffer = hostReq->input;
+		ASSERT_IS_FALSE(cudaMalloc(outDeviceInput, sizeof(FrameInput)));
 
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.cameraBuffer, sizeof(CameraChunk) * hostReq->input.cameraBufferLen));
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.lightBuffer, sizeof(LightChunk) * hostReq->input.lightBufferLen));
@@ -21,7 +21,7 @@ namespace RadGrabber
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hostReq->input.skyboxMaterialBufferLen));
 		ASSERT_IS_FALSE(cudaMalloc(&deviceInputBuffer.textureBuffer, sizeof(Texture2DChunk) * hostReq->input.textureBufferLen));
 
-		ASSERT_IS_FALSE(cudaMemcpy(*outDeviceInput, &hostReq->input, sizeof(UnityFrameRequest), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		ASSERT_IS_FALSE(cudaMemcpy(*outDeviceInput, &hostReq->input, sizeof(FrameRequest), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
 		for (int i = 0; i < hostReq->input.meshBufferLen; i++)
 		{
@@ -133,10 +133,10 @@ namespace RadGrabber
 
 #pragma warning( push )
 #pragma warning( disable : 4101 )
-	__host__ void FreeDeviceMem(UnityFrameInput* deviceInput)
+	__host__ void FreeDeviceMem(FrameInput* deviceInput)
 	{
-		UnityFrameInput input;
-		ASSERT_IS_FALSE(cudaMemcpy(&input, deviceInput, sizeof(UnityFrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+		FrameInput input;
+		ASSERT_IS_FALSE(cudaMemcpy(&input, deviceInput, sizeof(FrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 		for (int i = 0; i < input.meshBufferLen; i++)
 		{

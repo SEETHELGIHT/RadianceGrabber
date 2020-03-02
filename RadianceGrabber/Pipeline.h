@@ -4,9 +4,9 @@
 
 namespace RadGrabber
 {
-	struct UnityFrameRequest;
-	struct UnityFrameInput;
+	struct FrameRequest;
+	struct FrameInput;
 
-	__host__ void AllocateDeviceMem(UnityFrameRequest* hostReq, UnityFrameInput** outDeviceInput);
-	__host__ void FreeDeviceMem(UnityFrameInput* deviceInput);
+	__host__ void AllocateDeviceMem(FrameRequest* hostReq, FrameInput** outDeviceInput);
+	__host__ void FreeDeviceMem(FrameInput* deviceInput);
 }

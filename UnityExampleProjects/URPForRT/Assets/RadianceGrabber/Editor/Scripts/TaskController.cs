@@ -17,10 +17,10 @@
         //private static extern void StopCalc();
         [DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
         private static extern int GenerateSingleFrame(UnityFrameRequest* req);
-        [DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
-        private static extern int StopAll();
         //[DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
-        //private static extern int StopGenerateSingleFrame(int taskID);
+        //private static extern int StopAll();
+        [DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
+        private static extern int StopGenerateSingleFrame(int taskID);
         //[DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
         //private static extern int StopRecordMultiFrame(int taskID);
         //[DllImport("RadianceGrabber", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
@@ -63,9 +63,9 @@
                 return GenerateSingleFrame(reqPtr);
         }
         
-        public static void StopSingleFrameGeneration(int taskID)
+        public static bool StopSingleFrameGeneration(int taskID)
         {
-            //StopGenerateSingleFrame(taskID);
+            return StopGenerateSingleFrame(taskID) > 0;
         }
 
         public static void StartMultiFrameRecord(MultiFrameRequestOption opt, UnityRuntimeData runtimeData)
@@ -78,8 +78,9 @@
         {
         }
 
-        public static void StopMultiFrameRecord(int taskID)
+        public static bool StopMultiFrameRecord(int taskID)
         {
+            return true;
         }
 
         public static int StartMultiFrameGeneration()
@@ -87,8 +88,9 @@
             return -1;
         }
 
-        public static void StopMultiFrameGeneration(int taskID)
+        public static bool StopMultiFrameGeneration(int taskID)
         {
+            return true;
         }
 
         [InitializeOnLoadMethod()]

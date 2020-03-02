@@ -1,10 +1,16 @@
-#pragma once
+#include "Marshal.h"
 
-#include "DataTypes.cuh"
-#include "Define.h"
+#pragma once
 
 namespace RadGrabber
 {
+	enum class GeometryKind
+	{
+		StaticMesh		= 0,
+		SkinnedMesh		= 1,
+		AreaLight		= 2,
+	};
+
 	struct BVHInternalNode
 	{
 		Bounds bounds;
@@ -12,7 +18,8 @@ namespace RadGrabber
 		{
 			struct
 			{
-				int32 leafMeshIndex;
+				GeometryKind geomKind	: 2;
+				int32 leafMeshIndex		: 30;
 			};
 			struct
 			{
@@ -21,5 +28,17 @@ namespace RadGrabber
 				int32 rightIndex		: 31;
 			};
 		};
+	};
+
+	class BVH
+	{
+	public:
+		void BuildBVH(MeshRendererChunk* mrs, int mrCount, SkinnedMeshRendererChunk* smrs, int smrCount, LightChunk* lights, int lightCount);
+
+	private:
+		void RecursiveBuild();
+
+	private:
+		BVHInternalNode* mRoot;
 	};
 }
