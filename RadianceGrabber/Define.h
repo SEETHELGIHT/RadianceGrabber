@@ -9,6 +9,16 @@
 
 namespace RadGrabber
 {
+#ifdef __CUDACC__
+#define KLAUNCH_ARGS2(func, grid, block) func <<< grid, block >>>
+#define KLAUNCH_ARGS3(func, grid, block, sh_mem) func <<< grid, block, sh_mem >>>
+#define KLAUNCH_ARGS4(func, grid, block, sh_mem, stream) func <<< grid, block, sh_mem, stream >>>
+#else
+#define KLAUNCH_ARGS2(func, grid, block) func
+#define KLAUNCH_ARGS3(func, grid, block, sh_mem) func
+#define KLAUNCH_ARGS4(func, grid, block, sh_mem, stream) func
+#endif
+
 #define SAFE_HOST_DELETE(x) if(x) delete x
 #define SAFE_HOST_DELETE_ARRAY(x) if (x) delete[] x
 #define SAFE_DEVICE_DELETE(x) if(x) cudaFree(x)
