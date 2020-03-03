@@ -92,7 +92,7 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Accel.h" />
+    <ClInclude Include="ColorTarget.h" />
     <ClInclude Include="DeviceConfig.h" />
     <ClInclude Include="Aggregate.h" />
     <ClInclude Include="Integrator.h" />
@@ -117,8 +117,8 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <ClInclude Include="Unity\Unity\IUnityInterface.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Accel.cpp" />
     <ClCompile Include="Aggregate.cpp" />
+    <ClCompile Include="ColorTarget.cpp" />
     <ClCompile Include="DataTypes.cu" />
     <ClCompile Include="DeviceConfig.cpp" />
     <ClCompile Include="DLLEntry.cpp" />

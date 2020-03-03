@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Accel.cpp" />
     <ClCompile Include="Unity\RenderAPI_OpenGLCoreES.cpp">
       <Filter>Unity</Filter>
     </ClCompile>
@@ -32,9 +31,9 @@
     <ClCompile Include="Aggregate.cpp" />
     <ClCompile Include="Integrator.cpp" />
     <ClCompile Include="MemUtil.cpp" />
+    <ClCompile Include="ColorTarget.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Accel.h" />
     <ClInclude Include="Define.h" />
     <ClInclude Include="Unity\Unity\IUnityGraphics.h">
       <Filter>Unity\Unity</Filter>
@@ -79,6 +78,7 @@
     <ClInclude Include="Interfaces.h" />
     <ClInclude Include="Integrator.h" />
     <ClInclude Include="MemUtil.h" />
+    <ClInclude Include="ColorTarget.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Unity">
