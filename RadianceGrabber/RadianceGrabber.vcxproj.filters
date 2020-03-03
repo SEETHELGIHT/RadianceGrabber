@@ -31,6 +31,7 @@
     <ClCompile Include="Sample.cu" />
     <ClCompile Include="Aggregate.cpp" />
     <ClCompile Include="Integrator.cpp" />
+    <ClCompile Include="MemUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Accel.h" />
@@ -77,6 +78,7 @@
     <ClInclude Include="Aggregate.h" />
     <ClInclude Include="Interfaces.h" />
     <ClInclude Include="Integrator.h" />
+    <ClInclude Include="MemUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Unity">
