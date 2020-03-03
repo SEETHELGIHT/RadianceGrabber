@@ -319,20 +319,20 @@
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public unsafe partial struct FrameInput
     {
-        public int meshBufferLen;
-        public IntPtr meshBuffer;                   /*MeshChunk*/
         public int meshRendererBufferLen;
         public IntPtr meshRendererBuffer;           /*MeshRendererChunk*/
-        public int cameraBufferLen;
-        public IntPtr cameraBuffer;                 /*CameraChunk*/
-        public int skinnedMeshBufferLen;
-        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
         public int skinnedMeshRendererBufferLen;
         public IntPtr skinnedMeshRendererBuffer;    /*SkinnedMeshREndererChunk*/
-        public int skyboxMaterialBufferLen;
-        public IntPtr skyboxMaterialBuffer;         /*SkyboxChunk*/
         public int lightBufferLen;
         public IntPtr lightBuffer;                  /*LightChunk*/
+        public int cameraBufferLen;
+        public IntPtr cameraBuffer;                 /*CameraChunk*/
+        public int meshBufferLen;
+        public IntPtr meshBuffer;                   /*MeshChunk*/
+        public int skinnedMeshBufferLen;
+        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
+        public int skyboxMaterialBufferLen;
+        public IntPtr skyboxMaterialBuffer;         /*SkyboxChunk*/
         public int textureBufferLen;
         public IntPtr textureBuffer;                /*TextureChunk*/
         public int materialBufferLen;

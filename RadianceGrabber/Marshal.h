@@ -5,6 +5,10 @@
 
 namespace RadGrabber
 {
+	/*
+		TODO:: 한 프레임 데이터ㅓ와 여러 프레임 데이터의 인터페이스를 추상화 해야함.
+	*/
+
 	enum class eUnityVertexAttribute : uint
 	{ 
 		//
@@ -532,79 +536,111 @@ namespace RadGrabber
 		}
 	};
 
-	struct FrameRequestOption
+	struct FrameMutableInput
 	{
-		Vector2i resultImageResolution;
-		int selectedCameraIndex;
-		int maxSamplingCount;
-		void(*updateFunc)();
-
-		__host__ __device__ FrameRequestOption() {}
-		__host__ __device__ FrameRequestOption(const FrameRequestOption& c) :
-			resultImageResolution(c.resultImageResolution), selectedCameraIndex(c.selectedCameraIndex), 
-			maxSamplingCount(c.maxSamplingCount), updateFunc(c.updateFunc)
-		{}
-	};
-
-	struct GeometryInput
-	{
-		int meshBufferLen;
-		MeshChunk* meshBuffer;
 		int meshRendererBufferLen;
 		MeshRendererChunk* meshRendererBuffer;
+		int skinnedMeshRendererBufferLen;
+		SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
 		int lightBufferLen;
 		LightChunk* lightBuffer;
 		int cameraBufferLen;
 		CameraChunk* cameraBuffer;
-		int skinnedMeshBufferLen;
-		MeshChunk* skinnedMeshBuffer;
-		int skinnedMeshRendererBufferLen;
-		SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
-
-		GeometryInput() {}
-	};
-
-	struct FrameInput
-	{
-		int meshBufferLen;
-		MeshChunk* meshBuffer;
-		int meshRendererBufferLen;
-		MeshRendererChunk* meshRendererBuffer;
-		int lightBufferLen;
-		LightChunk* lightBuffer;
-		int cameraBufferLen;
-		CameraChunk* cameraBuffer;
-		int skinnedMeshBufferLen;
-		MeshChunk* skinnedMeshBuffer;
-		int skinnedMeshRendererBufferLen;
-		SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
 		int skyboxMaterialBufferLen;
 		SkyboxChunk* skyboxMaterialBuffer;
-		int textureBufferLen;
-		Texture2DChunk* textureBuffer;
 		int materialBufferLen;
 		MaterialChunk* materialBuffer;
 
-		__host__ __device__ FrameInput() {}
-		__host__ __device__ FrameInput(const FrameInput& c) :
-			cameraBufferLen(c.cameraBufferLen), skyboxMaterialBufferLen(c.skyboxMaterialBufferLen), lightBufferLen(c.lightBufferLen),
-			meshBufferLen(c.meshBufferLen), skinnedMeshBufferLen(c.skinnedMeshBufferLen), meshRendererBufferLen(c.meshRendererBufferLen),
-			skinnedMeshRendererBufferLen(c.skinnedMeshRendererBufferLen), textureBufferLen(c.textureBufferLen), materialBufferLen(c.materialBufferLen),
-			cameraBuffer(c.cameraBuffer), skyboxMaterialBuffer(c.skyboxMaterialBuffer), lightBuffer(c.lightBuffer),
-			meshBuffer(c.meshBuffer), skinnedMeshBuffer(c.skinnedMeshBuffer), meshRendererBuffer(c.meshRendererBuffer),
-			skinnedMeshRendererBuffer(c.skinnedMeshRendererBuffer), textureBuffer(c.textureBuffer), materialBuffer(c.materialBuffer)
-		{}
+		__host__ __device__ FrameMutableInput() {}
+	};
 
-		GeometryInput* GetGeometry()
+	struct FrameImmutableInput
+	{
+		int meshBufferLen;
+		MeshChunk* meshBuffer;
+		int skinnedMeshBufferLen;
+		MeshChunk* skinnedMeshBuffer;
+		int textureBufferLen;
+		Texture2DChunk* textureBuffer;
+
+		__host__ __device__ FrameImmutableInput() {}
+	};
+
+	struct IMultipleInput abstract
+	{
+		__host__ __device__ virtual int GetCount() const PURE;
+		__host__ __device__ virtual const FrameMutableInput* GetMutable(int i) const PURE;
+		__host__ __device__ virtual const FrameImmutableInput* GetImmutable() const PURE;
+	};
+
+	struct FrameInput : IMultipleInput
+	{
+		union
 		{
-			return reinterpret_cast<GeometryInput*>(this);
+			struct
+			{
+				// static per task
+				int meshBufferLen;
+				MeshChunk* meshBuffer;
+				int skinnedMeshBufferLen;
+				MeshChunk* skinnedMeshBuffer;
+				int textureBufferLen;
+				Texture2DChunk* textureBuffer;
+				// static per frame 
+				int meshRendererBufferLen;
+				MeshRendererChunk* meshRendererBuffer;
+				int skinnedMeshRendererBufferLen;
+				SkinnedMeshRendererChunk* skinnedMeshRendererBuffer;
+				int lightBufferLen;
+				LightChunk* lightBuffer;
+				int cameraBufferLen;
+				CameraChunk* cameraBuffer;
+				int skyboxMaterialBufferLen;
+				SkyboxChunk* skyboxMaterialBuffer;
+				int materialBufferLen;
+				MaterialChunk* materialBuffer;
+			};
+			struct
+			{
+				FrameImmutableInput immutableInput;
+				FrameMutableInput mutableInput;
+			};
+		};
+
+		__host__ __device__ FrameInput() {}
+		//__host__ __device__ FrameInput(const FrameInput& c) :
+		//	cameraBufferLen(c.cameraBufferLen), skyboxMaterialBufferLen(c.skyboxMaterialBufferLen), lightBufferLen(c.lightBufferLen),
+		//	meshBufferLen(c.meshBufferLen), skinnedMeshBufferLen(c.skinnedMeshBufferLen), meshRendererBufferLen(c.meshRendererBufferLen),
+		//	skinnedMeshRendererBufferLen(c.skinnedMeshRendererBufferLen), textureBufferLen(c.textureBufferLen), materialBufferLen(c.materialBufferLen),
+		//	cameraBuffer(c.cameraBuffer), skyboxMaterialBuffer(c.skyboxMaterialBuffer), lightBuffer(c.lightBuffer),
+		//	meshBuffer(c.meshBuffer), skinnedMeshBuffer(c.skinnedMeshBuffer), meshRendererBuffer(c.meshRendererBuffer),
+		//	skinnedMeshRendererBuffer(c.skinnedMeshRendererBuffer), textureBuffer(c.textureBuffer), materialBuffer(c.materialBuffer)
+		//{}
+
+		__host__ __device__ virtual int GetCount() const 
+		{
+			return 1; 
+		}
+		__host__ __device__ const FrameMutableInput* GetMutable(int i) const
+		{
+			ASSERT(i != 0);
+			return &mutableInput;
+		}
+		__host__ __device__ const FrameImmutableInput* GetImmutable() const
+		{
+			return &immutableInput;
 		}
 
-		static GeometryInput* GetGeometryFromFrame(FrameInput* p)
+		__host__ __device__ static FrameMutableInput* GetFrameMutableFromFrame(FrameInput* p)
 		{
-			return reinterpret_cast<GeometryInput*>(p);
+			return &p->mutableInput;
+		}
+		__host__ __device__ static FrameImmutableInput* GetFrameImmutableFromFrame(FrameInput* p)
+		{
+			return &p->immutableInput;
 		}
 	};
+
 	struct FrameOutput
 	{
 		Vector2i pixelBufferSize;
@@ -635,9 +671,22 @@ namespace RadGrabber
 			pixelBufferSize(c.pixelBufferSize), pixelBuffer(c.pixelBuffer)
 		{}
 	};
+	struct RequestOption
+	{
+		Vector2i resultImageResolution;
+		int selectedCameraIndex;
+		int maxSamplingCount;
+		void(*updateFunc)();
+
+		__host__ __device__ RequestOption() {}
+		__host__ __device__ RequestOption(const RequestOption& c) :
+			resultImageResolution(c.resultImageResolution), selectedCameraIndex(c.selectedCameraIndex),
+			maxSamplingCount(c.maxSamplingCount), updateFunc(c.updateFunc)
+		{}
+	};
 	struct FrameRequest
 	{
-		FrameRequestOption opt;
+		RequestOption opt;
 		FrameInput input;
 		FrameOutput output;
 
@@ -646,10 +695,34 @@ namespace RadGrabber
 		{}
 	};
 
-
-	struct TerrainRendererChunk
+	struct MultiFrameInput : IMultipleInput
 	{
-		Vector3f				position;
+		FrameImmutableInput immutable;
+		int mutableInputLen;
+		FrameMutableInput* mutableInputs;
+
+		__host__ __device__ virtual int GetCount() const
+		{
+			return mutableInputLen;
+		}
+		__host__ __device__ const FrameMutableInput* GetMutable(int i) const
+		{
+			ASSERT(i != 0);
+			return mutableInputs + i;
+		}
+		__host__ __device__ const FrameImmutableInput* GetImmutable() const
+		{
+			return &immutable;
+		}
+	};
+	struct MultiFrameOutput
+	{
+	};
+	struct MultiFrameRequest
+	{
+		RequestOption opt;
+		MultiFrameInput input;
+		MultiFrameOutput output;
 	};
 }
 

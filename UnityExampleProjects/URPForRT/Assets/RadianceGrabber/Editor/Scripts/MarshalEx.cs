@@ -531,6 +531,9 @@
                 }
                 else if (skyboxShaderName.Contains(cubemapSkyboxShaderName))
                 {
+                    /*
+                        TODO:: skybox:cubemap 
+                     */
                     Debug.Assert(false);
                     //type = SkyboxType.UnityCubemap;
                     //Cubemap cub = (Cubemap)skyboxMaterial.GetTexture("_Tex");
