@@ -1,26 +1,29 @@
 #include "Marshal.h"
-#include "Interfaces.h"
 
 #pragma once
 
 namespace RadGrabber
 {
+	class IAggregate abstract
+	{
+	public:
+		__device__ virtual bool Intersect(const Ray& ray, SurfaceIntersection& isect) const PURE;
+	};
+
 	class LinearAggregate : public IAggregate
 	{
 	public:
-		__host__ LinearAggregate() {}
-		__host__ LinearAggregate(const GeometryInput* param);
+		__host__ LinearAggregate();
+		__host__ LinearAggregate(const FrameMutableInput* min, const FrameImmutableInput* imin);
 		__host__ ~LinearAggregate();
 
 		// IAggregate을(를) 통해 상속됨
-		__host__ __device__ virtual void InitAggregate(const GeometryInput* param) override;
-		// IAggregate을(를) 통해 상속됨
-		__device__ virtual bool Intersect(const Ray & ray, SurfaceIntersection & isect) override;
+		__device__ virtual bool Intersect(const Ray & ray, SurfaceIntersection & isect) const override;
 
-		__host__ static LinearAggregate* GetAggregate(const GeometryInput* hostParam, const GeometryInput* deviceParam);
+		__host__ static LinearAggregate* GetAggregate(const FrameMutableInput* min, const FrameImmutableInput* imin);
 
 	private:
-		__device__ bool Intersect(const Ray & ray, const MeshRendererChunk* mrc, SurfaceIntersection & isect, float& lastDitance);
+		__device__ bool IntersectInternal(const Ray & ray, const MeshRendererChunk* mrc, SurfaceIntersection & isect, float& lastDitance) const;
 
 	private:
 		int mMRCount;
@@ -33,7 +36,9 @@ namespace RadGrabber
 		int mMRMeshCount;
 		MeshChunk* mMeshs;
 		bool mMeshArrayAllocated;
+
 	};
+
 	enum class BVHSplitAxis
 	{
 		None	= 0x00,
@@ -41,12 +46,14 @@ namespace RadGrabber
 		Y		= 0x02,
 		Z		= 0x03
 	};
+
 	enum class TransformBVHItemKind
 	{
 		MeshRenderer = 0x01,
 		SkinnedMeshRenderer = 0x02,
 		Light = 0x03
 	};
+
 	struct TransformBVHNode
 	{
 		Bounds bound;
@@ -67,6 +74,7 @@ namespace RadGrabber
 			};
 		};
 	};
+
 	struct MeshBVHNode
 	{
 		Bounds bound;
@@ -90,13 +98,11 @@ namespace RadGrabber
 	class TwoLayerBVH : public IAggregate
 	{
 	public:
-		__host__ TwoLayerBVH() {}
-		__host__ TwoLayerBVH(const GeometryInput* param);
-
+		__host__ TwoLayerBVH();
+		__host__ TwoLayerBVH(const FrameMutableInput* min, const FrameImmutableInput* imin);
+		__host__ ~TwoLayerBVH();
 		// IAggregate을(를) 통해 상속됨
-		__host__ virtual void InitAggregate(const GeometryInput* param) override;
-		// IAggregate을(를) 통해 상속됨
-		__device__ virtual bool Intersect(const Ray & ray, SurfaceIntersection & isect) override;
+		__device__ virtual bool Intersect(const Ray & ray, SurfaceIntersection & isect) const override;
 
 	private:
 		TransformBVHNode* mTransformRootNode;

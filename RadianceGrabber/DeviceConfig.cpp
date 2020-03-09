@@ -53,6 +53,6 @@ __host__ void GetOptimalBlockAndThreadDim(IN int deviceIndex, IN int warpCount, 
 
 	int optimalBlockCount, optimalThreadCount;
 	/*
-		TODO: Calculate optimal block and thread count
+		TODO:: Calculate optimal block and thread count
 	*/
 }

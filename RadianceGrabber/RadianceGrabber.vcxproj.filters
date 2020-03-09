@@ -75,7 +75,6 @@
     <ClInclude Include="DataTypes.cuh" />
     <ClInclude Include="Sample.cuh" />
     <ClInclude Include="Aggregate.h" />
-    <ClInclude Include="Interfaces.h" />
     <ClInclude Include="Integrator.h" />
     <ClInclude Include="MemUtil.h" />
     <ClInclude Include="ColorTarget.h" />

@@ -2,6 +2,11 @@
 
 #include "Marshal.h"
 
+/*
+	TODO:: using custom memory allocator 
+	ASSERT_IS_FALSE\(cudaMalloc\(\&*(.+)\,\ 
+	$1 = MAllocDevice(
+*/
 namespace RadGrabber
 {
 	__host__ void AllocateDeviceMem(__host__ FrameRequest* hostReq, __device__ FrameInput** outDeviceInput)

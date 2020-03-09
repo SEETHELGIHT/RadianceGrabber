@@ -18,148 +18,7 @@ namespace RadGrabber
 		int pixelIndex;
 		int remainingBounces;
 	};
-	/*
-		TODO:: Path Tracing 구현
-		TODO:: MLT 구현
-	*/
-	/*
-		Path Tracing 
-		1. 메터리얼 별로 BxDF 설정 이후 ray 방향 정하기
-			opaque, transparent 냐에 따라서 달라짐.
-			alpha clipping 으로 통과 혹은 처리
 
-			if alpha clipping? && texture sampling == 0: break;
-
-			if emission
-				끝, 색 계산 후 마침.
-
-			if opaque
-				BRDF 사용하여 ray direction + rgb color 
-			else
-				그냥 통과 + rgb filter(use BTDF 지만)
-
-		2. ray 부딫친 위치에서 빛 샘플링 하기
-			
-			광원 + emmision Object 처리
-			(현재 광원은 따로 처리 되어 있음)
-
-		4. russian roulette 으로 중간에 멈추기 처리?
-			구현 이후에
-		5. Subsurface Scattering, Transmission 구현은 나중에 ㅎㅎ
-	*/
-
-	/*
-		Return ray in world space
-	*/
-
-#define PI 3.14159265358979323846
-
-	/*
-		Perspective Camera : Generate Ray
-	*/
-	__forceinline__ __device__ Ray GenerateRay(CameraChunk* c, int pixelIndex, const Vector2i& textureResolution)
-	{
-		float theta = c->verticalFOV * PI / 180;
-		Vector2f size;
-		size.y = tan(theta / 2);
-		size.x = c->aspect * size.y;
-		Vector3f direciton = 
-			c->position - size.x * c->right - size.y * c->up - c->forward +
-			((float)(pixelIndex % textureResolution.x) / textureResolution.x) * c->right + 
-			(float)((int)pixelIndex / textureResolution.x) * c->up - c->position;
-
-		return Ray(c->position, direciton);
-	}
-
-
-	__forceinline__ __host__ __device__ float gamma(int n) {
-		return (n * MachineEpsilon) / (1 - n * MachineEpsilon);
-	}
-
-	__noinline__ __host__ __device__ ColorRGBA32 GetSkyboxColor(IN const Ray& missedRay, IN SkyboxChunk* skybox)
-	{
-		/*
-			TODO: calculate color for skybox
-		*/
-
-		switch (skybox->type)
-		{
-		case eSkyboxType::Unity6Side:
-			break;
-		case eSkyboxType::UnityParanomic:
-			break;
-		case eSkyboxType::UnityProcedural:
-			break;
-		}
-
-		return ColorRGBA32(0, 0, 0, 0);
-	}
-
-	__forceinline__ __device__ void GetAttenuationAndReflectedRay(
-		IN const SurfaceIntersection* surf, IN const MaterialChunk* materialBuffer, IN const Texture2DChunk* textureBuffer, 
-		IN curandState* randState,  
-		INOUT Ray& ray, INOUT Vector4f& attenuation
-	)
-	{
-		switch (materialBuffer[surf->materialIndex].type)
-		{
-		case eShaderType::UniversalLit:
-			materialBuffer[surf->materialIndex].URPLit.GetAttenuation(textureBuffer, surf, randState, attenuation);
-			materialBuffer[surf->materialIndex].URPLit.GetRayDirection(textureBuffer, surf, ray.direction);
-			break;
-		}
-	}
-
-	__global__ void IncrementalSamplinByPTInternal(
-		IN UnityFrameInput* input, curandState* randomStates, OUT ColorRGBA32* colorBuffer, 
-		IN int bufferSize, IN int startPixelIndex, IN int prevSamplingIndex, IN int limitPathLength, 
-		IN int selectedCameraIndex, IN Vector2i textureResolution
-	)
-	{
-		int id = threadIdx.x + threadIdx.y * blockDim.x + threadIdx.z * blockDim.x * blockDim.y, pixelIndex = startPixelIndex + id,
-			pathIndex = 0;
-		double pathThroughputWeightByLen = 1.0;
-
-		Ray lastRay = GenerateRay(input->cameraBuffer + selectedCameraIndex, pixelIndex, textureResolution);
-		SurfaceIntersection isect;
-		PathSegment seg;
-		Vector4f attenuation = Vector4f::One();
-
-		while (pathIndex < limitPathLength)
-		{
-			if (IntersectGeometryLinear(lastRay, input, isect))
-			{
-				if (isect.emitted)
-				{
-					// TODO:: isect 이걸로 계산
-					break;
-				}
-				else
-				{
-					GetAttenuationAndReflectedRay(
-						&isect, input->materialBuffer, input->textureBuffer, 
-						randomStates + id, lastRay, attenuation
-					);
-					pathIndex++;
-				}
-			}
-			else
-			{
-				// TODO:: 스카이박스 + ray.direction(WorldSpace) 으로 계산
-				break;
-			}
-		}
-
-		if (pathIndex == limitPathLength)
-		{
-			// TODO:: 아무것도 안부딫친 색 계산
-			//* Black or DirectLight
-			;
-			/*/ 
-			;
-			//*/
-		}
-	}
 	
 #pragma pack(push, 4)
 	struct PathInit
@@ -226,7 +85,7 @@ namespace RadGrabber
 		}
 	}
 
-	__global__ void IntersectionTest(Ray* rays, SurfaceIntersection* isects, UnityFrameInput* deviceInput, PathSegment2* segments, int segmentCount,)
+	__global__ void IntersectionTest(Ray* rays, SurfaceIntersection* isects, FrameInput* deviceInput, PathSegment2* segments, int segmentCount,)
 	{
 		int threadIndex = threadIdx.x + threadIdx.y * blockDim.x + threadIdx.z * blockDim.x * blockDim.y;
 		
@@ -236,7 +95,7 @@ namespace RadGrabber
 		segments[threadIndex].missedRay = !IntersectGeometryLinear(rays[threadIndex], deviceInput, isects[threadIndex]);
 	}
 
-	__global__ void ComputeScatteringAndColor(Ray* rays, SurfaceIntersection* isects, UnityFrameInput* deviceInput, PathSegment2* segments, int segmentCount)
+	__global__ void ComputeScatteringAndColor(Ray* rays, SurfaceIntersection* isects, FrameInput* deviceInput, PathSegment2* segments, int segmentCount)
 	{
 		int threadIndex = threadIdx.x + threadIdx.y * blockDim.x + threadIdx.z * blockDim.x * blockDim.y;
 
@@ -287,9 +146,9 @@ namespace RadGrabber
 		PathSegment2* allSegments = nullptr;
 
 		ASSERT_IS_FALSE(cudaMalloc(&allSegments, sizeof(PathSegment2) * (hostReq->opt.resultImageResolution.x * hostReq->opt.resultImageResolution.y)));
-		ASSERT_IS_FALSE(cudaMemset(allSegments, 0, sizeof(PathSegment2) * (hostReq->opt.resultImageResolution.x * hostReq->opt.resultImageResolution.y))));
+		ASSERT_IS_FALSE(cudaMemset(allSegments, 0, sizeof(PathSegment2) * (hostReq->opt.resultImageResolution.x * hostReq->opt.resultImageResolution.y)));
 
-		IAggregate* deviceAggregate = LinearAggregate::GetAggregate(hostReq->input.GetGeometry(), FrameInput::GetGeometryFromFrame(deviceInput));
+		IAggregate* deviceAggregate = LinearAggregate::GetAggregate(hostReq->input.GetMutable(0), FrameInput::GetFrameMutableFromFrame(deviceInput));
 
 		InitParams<<< param.blockCountInGrid, param.threadCountinBlock, 0, 0 >>>(
 			randStateBuffer,

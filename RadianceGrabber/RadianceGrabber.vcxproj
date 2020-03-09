@@ -96,7 +96,6 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <ClInclude Include="DeviceConfig.h" />
     <ClInclude Include="Aggregate.h" />
     <ClInclude Include="Integrator.h" />
-    <ClInclude Include="Interfaces.h" />
     <ClInclude Include="Marshal.h" />
     <ClInclude Include="DataTypes.cuh" />
     <ClInclude Include="Define.h" />
