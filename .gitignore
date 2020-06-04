@@ -398,7 +398,7 @@ MigrationBackup/
 */Logs
 */Temp
 
-# Radgrabber
+# RadianceGrabber
 
-UnityExampleProjects/*RT/Assets/Plugins/RadianceGrabber.dll
-
+log_*.txt
+*.framerequest
