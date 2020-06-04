@@ -1,7 +1,9 @@
 {
-    "name": "RadianceGrabberEditor",
+    "name": "RadGrabberEditor",
     "references": [],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
