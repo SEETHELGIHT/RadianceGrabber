@@ -402,3 +402,4 @@ MigrationBackup/
 
 log_*.txt
 *.framerequest
+*.ppm
