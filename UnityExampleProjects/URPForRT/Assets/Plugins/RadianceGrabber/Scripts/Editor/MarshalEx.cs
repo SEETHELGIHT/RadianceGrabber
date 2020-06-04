@@ -19,13 +19,9 @@
         {
             if (lastSize > 0 && arrayPtr != IntPtr.Zero)
             {
-                if (lastSize < changedSize)
-                {
-                    arrayPtr = Marshal.ReAllocHGlobal(arrayPtr, (IntPtr)(Marshal.SizeOf<Chunk>() * changedSize));
-                    RtlZeroMemory(arrayPtr + lastSize * Marshal.SizeOf<Chunk>(), (UIntPtr)(Marshal.SizeOf<Chunk>() * (changedSize - lastSize)));
-                    lastSize = changedSize;
-                }
-                // else if (lastSize > changedSize) ==> not implement for memory fragmentation
+                arrayPtr = Marshal.ReAllocHGlobal(arrayPtr, (IntPtr)(Marshal.SizeOf<Chunk>() * changedSize));
+                RtlZeroMemory(arrayPtr + lastSize * Marshal.SizeOf<Chunk>(), (UIntPtr)(Marshal.SizeOf<Chunk>() * (changedSize - lastSize)));
+                lastSize = changedSize;
             }
             else
             {
@@ -57,7 +53,12 @@
             if (item == null) return -1;
 
             int index = itemList.FindIndex(ii => ii.Equals(item));
-            if (index < 0) itemList.Add(item);
+            if (index < 0)
+            {
+                index = itemList.Count;
+                itemList.Add(item);
+            }
+                
             return index;
         }
     }
@@ -66,6 +67,10 @@
     {
         public bool MarshalFrom(Mesh ms)
         {
+            ms.RecalculateBounds();
+            ms.RecalculateNormals();
+            ms.RecalculateTangents();
+
             vertexCount = ms.vertexCount;
 
             Array arr = null;
@@ -129,6 +134,8 @@
             fixed (Matrix4x4* bsPtr = bs)
                 MarshalUtil.CopyMemory(bsPtr, (void*)bindposeArrayPtr, sizeof(Matrix4x4) * bindposeCount);
 
+            aabbInMS = ms.bounds;
+
             return true;
         }
 
@@ -162,6 +169,13 @@
             right = camera.transform.right;
             up = camera.transform.up;
             projectionMatrix = camera.projectionMatrix;
+            projectionInverseMatrix = camera.projectionMatrix.inverse;
+            cameraMatrix = camera.worldToCameraMatrix;
+            cameraInverseMatrix = camera.cameraToWorldMatrix;
+            transformMatrix = camera.transform.localToWorldMatrix;
+            transformInverseMatrix = camera.transform.worldToLocalMatrix;
+            nearClipPlane = camera.nearClipPlane;
+            farClipPlane = camera.farClipPlane;
 
             Skybox skybox = camera.GetComponent<Skybox>();
 
@@ -178,9 +192,14 @@
     {
         public bool MarshalFrom(Light light)
         {
-            type = light.type;
             position = light.transform.position;
             quaternion = light.transform.rotation;
+            scale = light.transform.lossyScale;
+            transformMatrix = light.transform.localToWorldMatrix;
+            transformInverseMatrix = light.transform.worldToLocalMatrix;
+            type = light.type;
+            forward = light.transform.forward;
+            color = new Vector3(light.color.r, light.color.g, light.color.b);
             intensity = light.intensity;
             indirectMultiplier = light.bounceIntensity;
             cullingMask = light.cullingMask;
@@ -213,6 +232,9 @@
             quaternion = mr.transform.rotation;
             scale = mr.transform.lossyScale;
 
+            transformMatrix = mr.localToWorldMatrix;
+            transformInverseMatrix = mr.worldToLocalMatrix;
+
             // mesh add
             MeshFilter mf = mr.GetComponent<MeshFilter>();
             if (mf != null)
@@ -222,7 +244,7 @@
 
             boundingBox = mr.bounds;
 
-            // material add
+            // material add 
             Material[] mats = mr.sharedMaterials;
             MarshalUtil.SizingArray<int>(ref materialArrayPtr, ref materialCount, mats.Length);
             int* materialArrayIntPtr = (int*)materialArrayPtr;
@@ -251,6 +273,9 @@
             position = smr.transform.position;
             quaternion = smr.transform.rotation;
             scale = smr.transform.lossyScale;
+
+            transformMatrix = smr.transform.localToWorldMatrix;
+            transformInverseMatrix = smr.transform.worldToLocalMatrix;
 
             // mesh add
             skinnedMeshRefIndex = skinnedMeshList.GetIndexAndAppendIfNotExist(smr.sharedMesh);
@@ -361,14 +386,14 @@
             Color32[] pixels2 = expr_3B.GetPixels32();
             if (pixels2.Length != texture.width * texture.height)
             {
-                Debug.LogErrorFormat("Texture buffer size mismatch for {0}: {1}, should be {2} ({3} x {4})", new object[]
-                {
+                Debug.LogErrorFormat("Texture buffer size mismatch for {0}: {1}, should be {2} ({3} x {4})", 
+                
                     texture.name,
                     pixels2.Length,
                     texture.width * texture.height,
                     texture.width,
                     texture.height
-                });
+                );
             }
             pixels = new Color32[texture.width * texture.height];
             Array.Copy(pixels2, pixels, Math.Min(texture.width * texture.height, pixels2.Length));
@@ -434,13 +459,13 @@
             Texture2D tex = null;
 
             tex = (Texture2D)material.GetTexture(baseMapKey);
-            baseMapIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+            baseMapIndex = tex != null? textureList.GetIndexAndAppendIfNotExist(tex): -1;
 
             tex = (Texture2D)material.GetTexture(bumpMapKey);
-            bumpMapIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+            bumpMapIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
 
             {
-                if (!workflow)
+                if (workflow)
                     tex = (Texture2D)material.GetTexture(metallicMapKey);
                 else
                     tex = (Texture2D)material.GetTexture(specularMapKey);
@@ -452,10 +477,14 @@
                         textureList.Add(tex);
                         smoothMapIndex = textureList.Count;
                     }
+                    else
+                        smoothMapIndex = -1;
                 }
                 else
                 {
-                    if (!workflow)
+                    smoothMapIndex = -1;
+
+                    if (workflow)
                         metallic = material.GetFloat(metallicKey);
                     else
                         specularColor = (Vector4)material.GetColor(specularColorKey);
@@ -463,12 +492,12 @@
             }
 
             tex = (Texture2D)material.GetTexture(occlusionMapKey);
-            occlusionMapIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+            occlusionMapIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
 
             {
                 tex = (Texture2D)material.GetTexture(emissionMapKey);
                 if (emissive)
-                    emissionMapIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    emissionMapIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                 else
                     emissionMapIndex = -1;
             }
@@ -517,17 +546,17 @@
                     type = SkyboxType.Unity6Side;
 
                     tex = (Texture2D)skyboxMaterial.GetTexture("_FrontTex");
-                    frontTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    frontTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                     tex = (Texture2D)skyboxMaterial.GetTexture("_BackTex");
-                    backTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    backTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                     tex = (Texture2D)skyboxMaterial.GetTexture("_LeftTex");
-                    leftTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    leftTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                     tex = (Texture2D)skyboxMaterial.GetTexture("_RightTex");
-                    rightTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    rightTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                     tex = (Texture2D)skyboxMaterial.GetTexture("_UpTex");
-                    upTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    upTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                     tex = (Texture2D)skyboxMaterial.GetTexture("_DownTex");
-                    downTextureIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    downTextureIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                 }
                 else if (skyboxShaderName.Contains(cubemapSkyboxShaderName))
                 {
@@ -551,7 +580,7 @@
                         (0x04 * skyboxMaterial.GetInt("_MirrorOnBack"));
 
                     tex = (Texture2D)skyboxMaterial.GetTexture("_MainTex");
-                    paranomicIndex = textureList.GetIndexAndAppendIfNotExist(tex);
+                    paranomicIndex = tex != null ? textureList.GetIndexAndAppendIfNotExist(tex) : -1;
                 }
             }
 
@@ -652,7 +681,7 @@
                         ((MeshChunk*)ptr.ToPointer())->MarshalFrom(ms)
                     );
             }
-
+            
             // material
             MarshalUtil.SizingArray<MaterialChunk>(ref data.materialBuffer, ref data.materialBufferLen, materialList.Count);
             MarshalUtil.ConvertArrayToPtr<MaterialChunk, Material>(
@@ -724,14 +753,5 @@
 
     public unsafe partial struct FrameOutput
     {
-        public void Init(Texture2D tex)
-        {
-            if (colorBufferSize.x != tex.width || colorBufferSize.y != tex.height)
-            {
-                colorBufferSize.x = tex.width;
-                colorBufferSize.x = tex.height;
-                colorBuffer = tex.GetNativeTexturePtr();
-            }
-        }
     }
 }

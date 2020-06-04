@@ -35,6 +35,7 @@
         public FilterMode filter;
         public int anisotropic;
         public IntPtr pixelPtr;
+        public bool hasAlpha;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
@@ -64,21 +65,30 @@
         public IntPtr indexArrayPtr;
         public IntPtr submeshArrayPtr;
         public IntPtr bindposeArrayPtr;
+        Bounds aabbInMS;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public partial struct CameraChunk
     {
-        public int cullingMask;
         public Vector3 position;
         public Quaternion quaternion;
-        public float verticalFOV;
-        public float aspect;
+        public Vector3 scale;
+        public Matrix4x4 transformMatrix;
+        public Matrix4x4 transformInverseMatrix;
         public Vector3 forward;
         public Vector3 right;
         public Vector3 up;
         public Matrix4x4 projectionMatrix;
+        public Matrix4x4 projectionInverseMatrix;
+        public Matrix4x4 cameraMatrix;
+        public Matrix4x4 cameraInverseMatrix;
+        public float verticalFOV;
+        public float aspect;
+        public float nearClipPlane;
+        public float farClipPlane;
         public int skyboxIndex;
+        public int cullingMask;
     }
 
     [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi, Pack = 4)]
@@ -88,28 +98,38 @@
         public Vector3 position;
         [FieldOffset(12)]
         public Quaternion quaternion;
-        [FieldOffset(28), MarshalAs(UnmanagedType.SysInt)]
-        public LightType type;
-        [FieldOffset(32)]
-        public float intensity;
-        [FieldOffset(36)]
-        public float indirectMultiplier;
+        [FieldOffset(28)]
+        public Vector3 scale;
         [FieldOffset(40)]
+        public Matrix4x4 transformMatrix;
+        [FieldOffset(104)]
+        public Matrix4x4 transformInverseMatrix;
+        [FieldOffset(168)]
+        public Vector3 forward;
+        [FieldOffset(180), MarshalAs(UnmanagedType.SysInt)]
+        public LightType type;
+        [FieldOffset(184)]
+        public Vector3 color;
+        [FieldOffset(196)]
+        public float intensity;
+        [FieldOffset(200)]
+        public float indirectMultiplier;
+        [FieldOffset(204)]
         public int cullingMask;
 
         // point, spot, area
-        [FieldOffset(44)]
+        [FieldOffset(208)]
         public float range;
         // spot
-        [FieldOffset(48)]
+        [FieldOffset(212)]
         public float angle;
         // area
-        [FieldOffset(48)]
+        [FieldOffset(212)]
         public float width;
         // area
-        [FieldOffset(52)]
+        [FieldOffset(216)]
         public float height;
-    } // size: 56
+    } 
 
     public enum ShaderType
     {
@@ -214,8 +234,10 @@
         public Vector3 position;
         public Quaternion quaternion;
         public Vector3 scale;
-        public int meshRefIndex;
+        public Matrix4x4 transformMatrix;
+        public Matrix4x4 transformInverseMatrix;
 
+        public int meshRefIndex;
         public Bounds boundingBox;
 
         public int materialCount;
@@ -228,8 +250,10 @@
         public Vector3 position;
         public Quaternion quaternion;
         public Vector3 scale;
-        public int skinnedMeshRefIndex;
+        public Matrix4x4 transformMatrix;
+        public Matrix4x4 transformInverseMatrix;
 
+        public int skinnedMeshRefIndex;
         public Bounds boundingBox;
 
         public int materialCount;
@@ -319,6 +343,12 @@
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public unsafe partial struct FrameInput
     {
+        public int meshBufferLen;
+        public IntPtr meshBuffer;                   /*MeshChunk*/
+        public int skinnedMeshBufferLen;
+        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
+        public int textureBufferLen;
+        public IntPtr textureBuffer;                /*TextureChunk*/
         public int meshRendererBufferLen;
         public IntPtr meshRendererBuffer;           /*MeshRendererChunk*/
         public int skinnedMeshRendererBufferLen;
@@ -327,33 +357,27 @@
         public IntPtr lightBuffer;                  /*LightChunk*/
         public int cameraBufferLen;
         public IntPtr cameraBuffer;                 /*CameraChunk*/
-        public int meshBufferLen;
-        public IntPtr meshBuffer;                   /*MeshChunk*/
-        public int skinnedMeshBufferLen;
-        public IntPtr skinnedMeshBuffer;            /*MeshChunk*/
         public int skyboxMaterialBufferLen;
         public IntPtr skyboxMaterialBuffer;         /*SkyboxChunk*/
-        public int textureBufferLen;
-        public IntPtr textureBuffer;                /*TextureChunk*/
         public int materialBufferLen;
         public IntPtr materialBuffer;               /*MaterialChunk*/
+        public int selectedCameraIndex;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public unsafe partial struct FrameOutput
     {
-        public Vector2Int colorBufferSize;
-        public IntPtr colorBuffer;                  /*ID3D11Resource*/
-        //public IntPtr updateFuncPtr;                /*UpdateResult*/
+        public void* colorBuffer;                  /*ID3D11Resource*/
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
     public struct FrameRequestOption
     {
         public Vector2Int resultImageResolution;
-        public int selectedCameraIndex;
+        //public int selectedCameraIndex;
         public int maxSamplingCount;
-        public IntPtr updateFuncPtr;                /*UpdateResult*/
+        public int maxDepth;
+        public IntPtr updateFuncPtr;                /*updateFuncPtr(int)*/
     };
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
@@ -368,7 +392,7 @@
     public struct MultiFrameRequestOption
     {
         public Vector2Int resultImageResolution;
-        public int selectedCameraIndex;
+        //public int selectedCameraIndex;
         public int maxSamplingCount;
 
         public int totalFrameCount;
@@ -376,10 +400,10 @@
     };
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 4)]
-    public partial struct UnityMultiFrameRequest
+    public unsafe partial struct UnityMultiFrameRequest
     {
         public MultiFrameRequestOption opt;
-        public FrameInput inputData;
+        public FrameInput* inputDataArray;
         public FrameOutput outputData;
     }
 
