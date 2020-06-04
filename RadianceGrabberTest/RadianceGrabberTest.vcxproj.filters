@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="MarshalTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="MatrixTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="RayFromCamera.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="SkyboxViewTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="LogFunctionTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameDataValidateTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="ThreadManagementTest.cpp">
+      <Filter>Test\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="NormalMappingTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="StaticMeshBuildTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigUtility.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="MeshTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="RayIntersectTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="SaveFrameRequestTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="SphereTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="HostDeviceCopyTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="PathIntegratorTest.cu">
+      <Filter>Test\Modules</Filter>
+    </CudaCompile>
+    <CudaCompile Include="main.cu" />
+    <CudaCompile Include="TransformBVHBuildTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="SampleTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="VectorFormula.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Utility">
+      <UniqueIdentifier>{25ec9699-568a-443a-9bdd-534555325168}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test">
+      <UniqueIdentifier>{3905c03b-c58a-4f93-bccd-606e44112ac6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test\Modules">
+      <UniqueIdentifier>{4275f78c-40fd-4961-8a4d-f8dd383c5ed0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test\Caluculation">
+      <UniqueIdentifier>{8d9e8db4-a1e2-46dd-881f-cefe91dc1900}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="image.ini" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ConfigUtility.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
