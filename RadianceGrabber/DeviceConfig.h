@@ -3,18 +3,21 @@
 
 #pragma once
 
-void InitializePlugin();
-void ClearPlugin();
-
-int __declspec(dllexport) __stdcall GetDeviceCount();
-int __declspec(dllexport) __stdcall GetMaxThreadPerBlock(int device);
-int __declspec(dllexport) __stdcall GetMaxThreadPerBlockInAllDevice();
-
-struct OptimalLaunchParam
+namespace RadGrabber
 {
-	int itemCount;
-	dim3 blockCountInGrid;
-	dim3 threadCountinBlock;
-};
+	void InitializePlugin();
+	void ClearPlugin();
 
-__host__ void GetOptimalBlockAndThreadDim(IN int deviceCount, IN int warpCount, OUT OptimalLaunchParam& outParam);
+	int __declspec(dllexport) __stdcall GetDeviceCount();
+	int __declspec(dllexport) __stdcall GetMaxThreadPerBlock(int device);
+	int __declspec(dllexport) __stdcall GetMaxThreadPerBlockInAllDevice();
+
+	struct OptimalLaunchParam
+	{
+		dim3 blockCountInGrid;
+		dim3 threadCountinBlock;
+	};
+
+	__host__ void GetOptimalBlockAndThreadDim(IN int deviceIndex, OUT OptimalLaunchParam& outParam);
+	__host__ void GetOptimalBufferItemCount(IN int deviceIndex, OUT int& size);
+}

@@ -4,6 +4,7 @@
   <PropertyGroup Label="UserMacros">
     <StdUnityProjectDir>UnityExampleProjects\StandardForRT\Assets\Plugins\</StdUnityProjectDir>
     <UnivUnityProjectDir>UnityExampleProjects\URPForRT\\Assets\Plugins\</UnivUnityProjectDir>
+    <DLLCopyComment>REM</DLLCopyComment>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup />
@@ -13,6 +14,9 @@
     </BuildMacro>
     <BuildMacro Include="UnivUnityProjectDir">
       <Value>$(UnivUnityProjectDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="DLLCopyComment">
+      <Value>$(DLLCopyComment)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

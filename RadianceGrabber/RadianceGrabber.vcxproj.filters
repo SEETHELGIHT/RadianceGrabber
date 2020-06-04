@@ -19,19 +19,13 @@
     <ClCompile Include="Unity\RenderAPI_D3D12.cpp">
       <Filter>Unity</Filter>
     </ClCompile>
-    <ClCompile Include="Unity\gl3w\gl3w.c">
-      <Filter>Unity\gl3w</Filter>
-    </ClCompile>
-    <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="DLLEntry.cpp" />
-    <ClCompile Include="DeviceConfig.cpp" />
-    <ClCompile Include="Marshal.cpp" />
-    <ClCompile Include="DataTypes.cu" />
-    <ClCompile Include="Sample.cu" />
-    <ClCompile Include="Aggregate.cpp" />
-    <ClCompile Include="Integrator.cpp" />
-    <ClCompile Include="MemUtil.cpp" />
-    <ClCompile Include="ColorTarget.cpp" />
+    <ClCompile Include="Unity\gl3w\gl3w.c">
+      <Filter>Unity\Unity</Filter>
+    </ClCompile>
+    <ClCompile Include="Integrator.h" />
+    <ClCompile Include="Marshal.cuh" />
+    <ClCompile Include="Util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Define.h" />
@@ -68,16 +62,13 @@
     <ClInclude Include="Unity\gl3w\gl3w.h">
       <Filter>Unity\gl3w</Filter>
     </ClInclude>
-    <ClInclude Include="Marshal.h" />
     <ClInclude Include="Pipeline.h" />
     <ClInclude Include="DeviceConfig.h" />
-    <ClInclude Include="PTEntry.cuh" />
     <ClInclude Include="DataTypes.cuh" />
-    <ClInclude Include="Sample.cuh" />
     <ClInclude Include="Aggregate.h" />
-    <ClInclude Include="Integrator.h" />
-    <ClInclude Include="MemUtil.h" />
     <ClInclude Include="ColorTarget.h" />
+    <ClInclude Include="Util.h" />
+    <ClInclude Include="DLLEntry.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Unity">
@@ -97,9 +88,17 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="PTEntry.cu" />
+    <Text Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="TODO.txt" />
+    <CudaCompile Include="Integrator.cu" />
+    <CudaCompile Include="Marshal.cu" />
+    <CudaCompile Include="DataTypes.cu" />
+    <CudaCompile Include="Sample.cu" />
+    <CudaCompile Include="Sample.cuh" />
+    <CudaCompile Include="Aggregate.cu" />
+    <CudaCompile Include="ColorTarget.cu" />
+    <CudaCompile Include="Pipeline.cu" />
+    <CudaCompile Include="DeviceConfig.cu" />
   </ItemGroup>
 </Project>

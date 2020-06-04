@@ -1,12 +1,21 @@
 LIBRARY
+	RadianceGrabber
 
 EXPORTS
 	UnityPluginLoad
 	UnityPluginUnload
 	GetRenderEventFunc
-	GenerateSingleFrame
+
+	SaveSingleFrameRequest
+	FlushLog
+	
 	GenerateSingleFrameIncremental
-	StopAll
+	StopGenerateSingleFrame
+	IsSingleFrameGenerating
+
+	GenerateMultiFrameIncremental
+	StopGenerateMultiFrame
+	GetGeneratedCurrentFrameIndex
 
 	GetDeviceCount
 	GetMaxThreadPerBlock

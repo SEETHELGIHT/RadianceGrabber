@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "../DeviceConfig.h"
-
+#include "../Util.h"
 
 // --------------------------------------------------------------------------
 // UnitySetInterfaces
@@ -32,17 +32,14 @@ extern "C" void	UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
 	}
 #endif // SUPPORT_VULKAN
 
-	InitializePlugin();
-
 	// Run OnGraphicsDeviceEvent(initialize) manually on plugin load
 	OnGraphicsDeviceEvent(kUnityGfxDeviceEventInitialize);
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
-	ClearPlugin();
-
 	s_Graphics->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
+	RadGrabber::FlushLog();
 }
 
 #if UNITY_WEBGL

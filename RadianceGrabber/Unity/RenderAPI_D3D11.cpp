@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <d3d11.h>
 #include "Unity/IUnityGraphicsD3D11.h"
-
+#include "../Util.h"
 
 class RenderAPI_D3D11 : public RenderAPI
 {
@@ -100,14 +100,24 @@ void RenderAPI_D3D11::EndReadIndexBuffer(void * bufferHandle)
 
 void * RenderAPI_D3D11::BeginReadTexture2D(void * bufferHandle)
 {
+	RadGrabber::Log("Begine::1\n");
+
 	ID3D11Texture2D* d3dtex = (ID3D11Texture2D*)bufferHandle;
 	assert(d3dtex);
 
-	ID3D11DeviceContext* ctx = NULL;
+	RadGrabber::Log("Begine::2\n");
+
+	ID3D11DeviceContext* ctx = nullptr;
 	m_Device->GetImmediateContext(&ctx);
+	assert(ctx != nullptr);
+
+	RadGrabber::Log("Begine::3\n");
+
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	ctx->Map(d3dtex, 0, D3D11_MAP_READ, 0, &mapped);
 	ctx->Release();
+
+	RadGrabber::Log("Begine::last\n");
 
 	return mapped.pData;
 }

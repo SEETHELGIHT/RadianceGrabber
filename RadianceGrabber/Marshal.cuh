@@ -1,5 +1,7 @@
+
 #include "DataTypes.cuh"
 #include "Unity/RenderAPI.h"
+#include "Util.h"
 
 #pragma once
 
@@ -206,6 +208,8 @@ namespace RadGrabber
 		Trilinear = 2
 	};
 
+#pragma pack(push, 4)
+
 	struct Bone
 	{
 		Vector3f				position;
@@ -221,11 +225,19 @@ namespace RadGrabber
 		Vector2i				size;
 		eUnityFilterMode		filter;
 		int						anisotropic;
+		/*
+			host : color 2d vector
+			device : texture object
+		*/
 		void*					pixelPtr;
+		bool					hasAlpha;
 		
 		__host__ __device__ Texture2DChunk() {}
 		__host__ __device__ Texture2DChunk(Vector2i s, eUnityFilterMode e, int aniso, void* pp) : size(s), filter(e), anisotropic(aniso), pixelPtr(pp) {}
 		__host__ __device__ Texture2DChunk(const Texture2DChunk& c) : size(c.size), filter(c.filter), anisotropic(c.anisotropic), pixelPtr(c.pixelPtr) {}
+
+		__host__ __device__ ColorRGBA Sample8888(const Vector2f& uv) const;
+		__host__ __device__ ColorRGBA Sample32323232(const Vector2f& uv) const;
 	};
 
 	struct MeshChunk
@@ -236,47 +248,76 @@ namespace RadGrabber
 		int									bindposeCount;
 		Vector3f*							positions;
 		Vector3f*							normals;
-		Vector3f*							tangents;
+		Vector4f*							tangents;
 		Vector2f*							uvs;
 		int*								indices;
 		UnitySubMeshDescriptor*				submeshArrayPtr;
-		Matrix4x4*							bindposeArrayPtr; // allocated!
+		Matrix4x4*							bindposeArrayPtr; // allocated!;
+		Bounds								aabbInMS;
 
 		__host__ __device__ MeshChunk() {}
 		__host__ __device__ MeshChunk(const MeshChunk& c) : 
 			vertexCount(c.vertexCount), indexCount(c.indexCount), submeshCount(c.submeshCount), bindposeCount(c.bindposeCount),
 			positions(c.positions), normals(c.normals), tangents(c.tangents), uvs(c.uvs), 
-			indices(c.indices), submeshArrayPtr(c.submeshArrayPtr), bindposeArrayPtr(c.bindposeArrayPtr)
+			indices(c.indices), submeshArrayPtr(c.submeshArrayPtr), bindposeArrayPtr(c.bindposeArrayPtr),
+			aabbInMS(c.aabbInMS)
 		{}
+
+		__host__ __device__ int GetSubmeshIndexFromIndex(int index) const
+		{
+			for (int i = 0; i < submeshCount; i++)
+				if (submeshArrayPtr[i].indexStart <= index && index - submeshArrayPtr[i].indexStart < submeshArrayPtr[i].indexCount)
+					return i;
+
+			return -1;
+		}
 	};
 
 	struct CameraChunk
 	{
-		int						layerMask;
 		Vector3f				position;
 		Quaternion				quaternion;
-		float					verticalFOV; // vertical
-		float					aspect;
+		Vector3f				scale;
+		Matrix4x4				transformMatrix;
+		Matrix4x4				transformInverseMatrix;
 		Vector3f				forward;
 		Vector3f				right;
 		Vector3f				up;
 		Matrix4x4				projectionMatrix;
+		Matrix4x4				projectionInverseMatrix;
+		Matrix4x4				cameraMatrix;
+		Matrix4x4				cameraInverseMatrix;
+		float					verticalFOV; // vertical
+		float					aspect;
+		float					nearClipPlane;
+		float					farClipPlane;
 		int						skyboxIndex;
+		int						layerMask;
 
 		__host__ __device__ CameraChunk() {}
 		__host__ __device__ CameraChunk(const CameraChunk& c) : 
-			layerMask(c.layerMask), position(c.position), quaternion(c.quaternion), 
+			layerMask(c.layerMask), position(c.position), quaternion(c.quaternion), scale(c.scale),
 			verticalFOV(c.verticalFOV), aspect(c.aspect), 
-			forward(c.forward), right(c.right), up(c.up),
-			projectionMatrix(c.projectionMatrix), skyboxIndex(c.skyboxIndex)
+			forward(c.forward), right(c.right), up(c.up), skyboxIndex(c.skyboxIndex),
+			projectionMatrix(c.projectionMatrix), projectionInverseMatrix(c.projectionInverseMatrix), 
+			cameraMatrix(c.cameraMatrix), cameraInverseMatrix(c.cameraInverseMatrix),
+			nearClipPlane(c.nearClipPlane), farClipPlane(c.farClipPlane)
 		{}
+
+		__host__ __device__ void GetRay(const Vector2f& uv, Ray& r);
+		__host__ __device__ void GetPixelRay(int pixelIndex, Vector2i s, Ray& r);
 	};
 
 	struct LightChunk
 	{
 		Vector3f				position;
 		Quaternion				quaternion;
+		Vector3f				scale;
+		Matrix4x4				transformMatrix;
+		Matrix4x4				transformInverseMatrix;
+		Vector3f				forward;
 		eUnityLightType			type;
+		Vector3f				color;
 		float					intensity;
 		float					indirectMultiplier;
 		int						cullingMask;
@@ -291,9 +332,10 @@ namespace RadGrabber
 
 		__host__ __device__ LightChunk() {}
 		__host__ __device__ LightChunk(const LightChunk& c) :
-			type(c.type), position(c.position), quaternion(c.quaternion),
-			intensity(c.intensity), indirectMultiplier(c.indirectMultiplier), 
-			cullingMask(c.cullingMask)
+			type(c.type), position(c.position), quaternion(c.quaternion), scale(c.scale),
+			transformMatrix(c.transformMatrix), transformInverseMatrix(c.transformInverseMatrix),
+			forward(c.forward), color(c.color),
+			intensity(c.intensity), indirectMultiplier(c.indirectMultiplier), cullingMask(c.cullingMask)
 		{
 			switch (type)
 			{
@@ -312,8 +354,11 @@ namespace RadGrabber
 			}
 		}
 
-		__host__ __device__ bool IntersectRay(const Ray & ray, SurfaceIntersection& isect, float& intersectDistance);
-		__host__ __device__ bool GetBoundingBox(Bounds& bb);
+		__host__ __device__ bool IntersectRay(const Ray & ray, SurfaceIntersection& isect, float& intersectDistance) const;
+		__host__ __device__ bool IntersectRayOnly(const Ray & ray) const;
+
+		__host__ __device__ bool GetBoundingBox(Bounds& bb) const;
+		__host__ __device__ bool Sample(const Ray& ray, const SurfaceIntersection& isect, Vector3f& color) const;
 	};
 
 	/// <summary>
@@ -336,6 +381,7 @@ namespace RadGrabber
 	struct URPLitMaterialChunk
 	{
 		int						flag;
+		float					alphaThreshold;
 
 		Vector4f				baseMapTint;
 		float					smoothness;
@@ -365,42 +411,75 @@ namespace RadGrabber
 			scale(c.scale), offset(c.offset)
 		{ }
 
-		__forceinline__ __device__ __host__ int IsEmission()
+		__forceinline__ __device__ __host__ int IsMetallicSetup() const
 		{
-			return !!(flag & 0x40);
+			return !!(flag & 0x01);
 		}
 
-		__forceinline__ __device__ void GetAttenuation(
-			IN const Texture2DChunk* textureBuffer, IN const SurfaceIntersection* isect,
-			IN curandState* state,
-			INOUT Vector4f& attenuPerComp) const
+		__forceinline__ __device__ __host__ int IsOpaque() const
 		{
-			float u01 = curand_uniform(state);
+			return !(flag & 0x02);
+		}
 
-			if (u01 < smoothness)
+		__forceinline__ __device__ __host__ int IsAlphaClipping() const
+		{
+			return !(flag & 0x10);
+		}
+
+		__forceinline__ __device__ __host__ int IsEmission() const
+		{
+			return !(flag & 0x40);
+		}
+
+		__forceinline__ __host__ __device__ Vector3f SampleAlbedo(IN const Texture2DChunk* textureBuffer, IN const Vector2f& uv) const
+		{
+			Vector3f a = baseMapTint;
+			if (baseMapIndex >= 0)
 			{
-				/*
-					TODO:: specular
-				*/
+				ColorRGBA c = textureBuffer[baseMapIndex].Sample8888(uv);
+				a.x *= c.r;
+				a.y *= c.g;
+				a.z *= c.b;
+			}
+			return a;
+		}
+
+		__forceinline__ __host__ __device__ float SampleMetallic(IN const Texture2DChunk* textureBuffer, IN const Vector2f& uv) const
+		{
+			if (smoothMapIndex >= 0)
+				return textureBuffer[smoothMapIndex].Sample8888(uv).r;
+			else
+				return metallic;
+		}
+
+		__forceinline__ __host__ __device__ float SampleOcclusion(IN const Texture2DChunk* textureBuffer, IN const Vector2f& uv) const
+		{
+			if (smoothMapIndex >= 0)
+				return textureBuffer[smoothMapIndex].Sample8888(uv).g;
+			else
+				return 1.f;
+		}
+		 
+		__forceinline__ __host__ __device__ float SampleSmoothness(IN const Texture2DChunk* textureBuffer, IN const Vector2f& uv) const
+		{
+			if (flag & 0x20)
+			{
+				if (baseMapIndex >= 0)
+					return smoothness * textureBuffer[baseMapIndex].Sample8888(uv).a;
+				else
+					return smoothness;
 			}
 			else
 			{
-				/*
-					TODO:: diffuse
-				*/
+				if (smoothMapIndex >= 0)
+					return smoothness * textureBuffer[smoothMapIndex].Sample8888(uv).a;
+				else
+					return smoothness;
 			}
-
-			/*
-				TODO:: Attenuation 계싼
-			*/
+				
 		}
 
-		__forceinline__ __device__ __host__  void GetRayDirection(IN const Texture2DChunk* textureBuffer, IN const SurfaceIntersection* isect, OUT Vector3f& direction) const
-		{
-			/*
-				TODO:: Ray 방향 계산
-			*/
-		}
+		__device__ void GetMaterialInteract(IN const Texture2DChunk* textureBuffer, IN SurfaceIntersection* isect, IN curandState* state, INOUT Vector4f& attenuPerComp, INOUT Ray& ray) const;
 	};
 
 	struct MaterialChunk
@@ -421,6 +500,8 @@ namespace RadGrabber
 				break;
 			}
 		}
+
+		 __device__ void GetMaterialInteract(IN const Texture2DChunk* textureBuffer, IN SurfaceIntersection* isect, IN curandState* state, INOUT Vector4f& attenuPerComp, INOUT Ray& ray) const;
 	};
 
 	struct MeshRendererChunk
@@ -428,6 +509,8 @@ namespace RadGrabber
 		Vector3f				position;
 		Quaternion				quaternion;
 		Vector3f				scale;
+		Matrix4x4				transformMatrix;
+		Matrix4x4				transformInverseMatrix;
 		int						meshRefIndex;
 		Bounds					boundingBox;
 
@@ -437,7 +520,9 @@ namespace RadGrabber
 		__host__ __device__ MeshRendererChunk() {}
 		__host__ __device__ MeshRendererChunk(const MeshRendererChunk& c) : 
 			position(c.position), quaternion(c.quaternion), scale(c.scale), boundingBox(c.boundingBox),
-			meshRefIndex(c.meshRefIndex), materialCount(c.materialCount), materialArrayPtr(c.materialArrayPtr) 
+			transformMatrix(c.transformMatrix), transformInverseMatrix(c.transformInverseMatrix),
+			meshRefIndex(c.meshRefIndex), materialCount(c.materialCount), materialArrayPtr(c.materialArrayPtr)
+			
 		{}
 	};
 
@@ -446,6 +531,8 @@ namespace RadGrabber
 		Vector3f				position;
 		Quaternion				quaternion;
 		Vector3f				scale;
+		Matrix4x4				transformMatrix;
+		Matrix4x4				transformInverseMatrix;
 		int						skinnedMeshRefIndex;
 		Bounds					boundingBox;
 
@@ -457,7 +544,9 @@ namespace RadGrabber
 
 		__host__ __device__ SkinnedMeshRendererChunk() {}
 		__host__ __device__ SkinnedMeshRendererChunk(const SkinnedMeshRendererChunk& c) :
-			position(c.position), quaternion(c.quaternion), scale(c.scale), boundingBox(c.boundingBox),
+			position(c.position), quaternion(c.quaternion), scale(c.scale), 
+			transformMatrix(c.transformMatrix), transformInverseMatrix(c.transformInverseMatrix),
+			boundingBox(c.boundingBox),
 			skinnedMeshRefIndex(c.skinnedMeshRefIndex), 
 			materialCount(c.materialCount), boneCount(c.boneCount),
 			materialArrayPtr(c.materialArrayPtr), boneArrayPtr(c.boneArrayPtr)
@@ -476,12 +565,12 @@ namespace RadGrabber
 			// 000. 6Side
 			struct
 			{
-				int				frontTextureIndex;
-				int				backTextureIndex;
-				int				leftTextureIndex;
-				int				rightTextureIndex;
-				int				upTextureIndex;
-				int				downTextureIndex;
+				int				frontTextureIndex;	// +Z
+				int				backTextureIndex;	// -Z
+				int				leftTextureIndex;	// +X
+				int				rightTextureIndex;	// -X
+				int				upTextureIndex;		// +Y
+				int				downTextureIndex;	// -Y
 			};
 			// 001. Cubemap
 			//struct
@@ -534,6 +623,128 @@ namespace RadGrabber
 				break;
 			}
 		}
+
+		__forceinline__ __host__ __device__ bool Sample(const Ray& ray, const Texture2DChunk* c, Vector3f& color)
+		{
+			Vector3f unitDirection = ray.direction.normalized();
+			float t = 0.5 * (unitDirection.y + 1.0);
+			color = (1.0f - t) * Vector3f(0.3689999, 0.3489999, 0.3409999) + t * Vector3f(0.839f, 0.949f, 0.992f);
+			return true;
+
+			/*
+				TODO:: Skybox Sampling
+			*/
+
+			switch (type)
+			{
+			case eSkyboxType::Unity6Side:
+
+				//if (ray.direction.x < ray.direction.y)
+				//{
+				//	if (ray.direction.y < ray.direction.z) // z
+				//	{
+				//		;
+				//	}
+				//	else
+				//	{
+				//		if (ray.direction.x < ray.direction.y) // y
+				//		{
+				//		}
+				//		else // x
+				//		{
+				//		}
+				//	}
+				//}
+				//else
+				//{
+				//	if (ray.direction.x < ray.direction.z) // z
+				//	{
+				//	}
+				//	else
+				//	{
+				//		if (ray.direction.x < ray.direction.y) // y
+				//		{
+				//		}
+				//		else // x
+				//		{
+				//		}
+				//	}
+				//}
+
+				break;
+			case eSkyboxType::UnityParanomic:
+				if (mappingAndImgtypeFlag & 0x01)
+				{
+					// TODO:: 6 frame layout
+				}
+				else
+				{
+					float theta = acos(ray.direction.y) / -PI;
+
+					if (mappingAndImgtypeFlag & 0x02 && theta > 0.5f)
+						return false;
+
+					float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
+					ColorRGBA clr = c[paranomicIndex].Sample8888(Vector2f(phi, theta));
+					color = Vector3f(clr.r, clr.g, clr.b);
+				}
+				break;
+			case eSkyboxType::UnityProcedural:
+				// TODO:: Procedural Sampling
+//				static const float3 kDefaultScatteringWavelength = float3(.65, .57, .475);
+//				static const float3 kVariableRangeForScatteringWavelength = float3(.15, .15, .15);
+//
+//#define OUTER_RADIUS 1.025
+//				static const float kOuterRadius = OUTER_RADIUS;
+//				static const float kOuterRadius2 = OUTER_RADIUS * OUTER_RADIUS;
+//				static const float kInnerRadius = 1.0;
+//				static const float kInnerRadius2 = 1.0;
+//
+//				static const float kCameraHeight = 0.0001;
+//
+//#define kRAYLEIGH (lerp(0.0, 0.0025, pow(_AtmosphereThickness,2.5)))      // Rayleigh constant
+//#define kMIE 0.0010             // Mie constant
+//#define kSUN_BRIGHTNESS 20.0    // Sun brightness
+//
+//#define kMAX_SCATTER 50.0 // Maximum scattering value, to prevent math overflows on Adrenos
+//
+//				static const float kHDSundiskIntensityFactor = 15.0;
+//				static const float kSimpleSundiskIntensityFactor = 27.0;
+//
+//				static const float kSunScale = 400.0 * kSUN_BRIGHTNESS;
+//				static const float kKmESun = kMIE * kSUN_BRIGHTNESS;
+//				static const float kKm4PI = kMIE * 4.0 * 3.14159265;
+//				static const float kScale = 1.0 / (OUTER_RADIUS - 1.0);
+//				static const float kScaleDepth = 0.25;
+//				static const float kScaleOverScaleDepth = (1.0 / (OUTER_RADIUS - 1.0)) / 0.25;
+//				static const float kSamples = 2.0; // THIS IS UNROLLED MANUALLY, DON'T TOUCH
+//
+//#define MIE_G (-0.990)
+//#define MIE_G2 0.9801
+//
+//#define SKY_GROUND_THRESHOLD 0.02
+//				float getRayleighPhase(float eyeCos2)
+//				{
+//					return 0.75 + 0.75*eyeCos2;
+//				}
+//				float getRayleighPhase(Vector3f light, Vector3f ray)
+//				{
+//					float eyeCos = Dot(light, ray);
+//					return getRayleighPhase(eyeCos * eyeCos);
+//				}
+//
+//				float scale(float inCos)
+//				{
+//					float x = 1.0 - inCos;
+//					return 0.25 * exp(-0.00287 + x * (0.459 + x * (3.83 + x * (-6.80 + x * 5.25))));
+//				}
+
+
+				break;
+			}
+
+			return true;
+		}
 	};
 
 	struct FrameMutableInput
@@ -550,6 +761,7 @@ namespace RadGrabber
 		SkyboxChunk* skyboxMaterialBuffer;
 		int materialBufferLen;
 		MaterialChunk* materialBuffer;
+		int selectedCameraIndex;	
 
 		__host__ __device__ FrameMutableInput() {}
 	};
@@ -566,14 +778,15 @@ namespace RadGrabber
 		__host__ __device__ FrameImmutableInput() {}
 	};
 
-	struct IMultipleInput abstract
+	class IMultipleInput abstract
 	{
+	public:
 		__host__ __device__ virtual int GetCount() const PURE;
 		__host__ __device__ virtual const FrameMutableInput* GetMutable(int i) const PURE;
 		__host__ __device__ virtual const FrameImmutableInput* GetImmutable() const PURE;
 	};
 
-	struct FrameInput : IMultipleInput
+	struct FrameInputInternal
 	{
 		union
 		{
@@ -599,6 +812,7 @@ namespace RadGrabber
 				SkyboxChunk* skyboxMaterialBuffer;
 				int materialBufferLen;
 				MaterialChunk* materialBuffer;
+				int selectedCameraIndex;
 			};
 			struct
 			{
@@ -607,15 +821,44 @@ namespace RadGrabber
 			};
 		};
 
-		__host__ __device__ FrameInput() {}
-		//__host__ __device__ FrameInput(const FrameInput& c) :
-		//	cameraBufferLen(c.cameraBufferLen), skyboxMaterialBufferLen(c.skyboxMaterialBufferLen), lightBufferLen(c.lightBufferLen),
-		//	meshBufferLen(c.meshBufferLen), skinnedMeshBufferLen(c.skinnedMeshBufferLen), meshRendererBufferLen(c.meshRendererBufferLen),
-		//	skinnedMeshRendererBufferLen(c.skinnedMeshRendererBufferLen), textureBufferLen(c.textureBufferLen), materialBufferLen(c.materialBufferLen),
-		//	cameraBuffer(c.cameraBuffer), skyboxMaterialBuffer(c.skyboxMaterialBuffer), lightBuffer(c.lightBuffer),
-		//	meshBuffer(c.meshBuffer), skinnedMeshBuffer(c.skinnedMeshBuffer), meshRendererBuffer(c.meshRendererBuffer),
-		//	skinnedMeshRendererBuffer(c.skinnedMeshRendererBuffer), textureBuffer(c.textureBuffer), materialBuffer(c.materialBuffer)
-		//{}
+
+		__host__ __device__ FrameInputInternal() {}
+		__host__ __device__ FrameInputInternal(const FrameInputInternal& c) :
+			cameraBufferLen(c.cameraBufferLen),
+			skyboxMaterialBufferLen(c.skyboxMaterialBufferLen),
+			lightBufferLen(c.lightBufferLen),
+			meshBufferLen(c.meshBufferLen),
+			skinnedMeshBufferLen(c.skinnedMeshBufferLen),
+			meshRendererBufferLen(c.meshRendererBufferLen),
+			skinnedMeshRendererBufferLen(c.skinnedMeshRendererBufferLen),
+			textureBufferLen(c.textureBufferLen),
+			materialBufferLen(c.materialBufferLen),
+			cameraBuffer(c.cameraBuffer),
+			skyboxMaterialBuffer(c.skyboxMaterialBuffer),
+			lightBuffer(c.lightBuffer),
+			meshBuffer(c.meshBuffer),
+			skinnedMeshBuffer(c.skinnedMeshBuffer),
+			meshRendererBuffer(c.meshRendererBuffer),
+			skinnedMeshRendererBuffer(c.skinnedMeshRendererBuffer),
+			textureBuffer(c.textureBuffer),
+			materialBuffer(c.materialBuffer),
+			selectedCameraIndex(c.selectedCameraIndex)
+		{}
+	};
+
+	struct FrameInput : public IMultipleInput
+	{
+		FrameInputInternal in;
+
+		__host__ __device__ FrameInput() : in() {}
+		__host__ __device__ FrameInput(const FrameInput& c) 
+		{
+			in = c.in;
+		}
+		__host__ __device__ FrameInput(const FrameInputInternal& c) : in(c)
+		{
+			in = c;
+		}
 
 		__host__ __device__ virtual int GetCount() const 
 		{
@@ -623,29 +866,28 @@ namespace RadGrabber
 		}
 		__host__ __device__ const FrameMutableInput* GetMutable(int i) const
 		{
-			ASSERT(i != 0);
-			return &mutableInput;
+			ASSERT_IS_TRUE(i == 0);
+			return &in.mutableInput;
 		}
 		__host__ __device__ const FrameImmutableInput* GetImmutable() const
 		{
-			return &immutableInput;
+			return &in.immutableInput;
 		}
 
 		__host__ __device__ static FrameMutableInput* GetFrameMutableFromFrame(FrameInput* p)
 		{
-			return &p->mutableInput;
+			return &p->in.mutableInput;
 		}
 		__host__ __device__ static FrameImmutableInput* GetFrameImmutableFromFrame(FrameInput* p)
 		{
-			return &p->immutableInput;
+			return &p->in.immutableInput;
 		}
 	};
 
 	struct FrameOutput
 	{
-		Vector2i pixelBufferSize;
-		void* pixelBuffer;
-
+		void* pixelBuffer; // ColorRGB*
+/*
 		bool GetPixelFromTexture(void* sourceBuffer, int pixelIndex, int itemCount, DEL void (*getPixelFunc)(void*, void*, int, int, int))
 		{
 			ASSERT(getPixelFunc);
@@ -665,38 +907,47 @@ namespace RadGrabber
 
 			return true;
 		}
-
+*/
 		__host__ __device__ FrameOutput() {}
-		__host__ __device__ FrameOutput(const FrameOutput& c) :
-			pixelBufferSize(c.pixelBufferSize), pixelBuffer(c.pixelBuffer)
+		__host__ __device__ FrameOutput(const FrameOutput& c) :  pixelBuffer(c.pixelBuffer)
 		{}
 	};
 	struct RequestOption
 	{
 		Vector2i resultImageResolution;
-		int selectedCameraIndex;
 		int maxSamplingCount;
-		void(*updateFunc)();
+		int maxDepth;
+		void(*updateFunc)(int smampleCount);
 
 		__host__ __device__ RequestOption() {}
 		__host__ __device__ RequestOption(const RequestOption& c) :
-			resultImageResolution(c.resultImageResolution), selectedCameraIndex(c.selectedCameraIndex),
-			maxSamplingCount(c.maxSamplingCount), updateFunc(c.updateFunc)
+			resultImageResolution(c.resultImageResolution), maxSamplingCount(c.maxSamplingCount), maxDepth(c.maxDepth), updateFunc(c.updateFunc)
 		{}
 	};
-	struct FrameRequest
+
+	class FrameRequestMarshal
 	{
+	public:
+		RequestOption opt;
+		FrameInputInternal input;
+		FrameOutput output;
+	};
+
+	class FrameRequest
+	{
+	public:
 		RequestOption opt;
 		FrameInput input;
 		FrameOutput output;
 
-		__host__ __device__ FrameRequest() {}
-		__host__ __device__ FrameRequest(const FrameRequest& c) : opt(c.opt), input(c.input), output(c.output)
-		{}
+		__host__ __device__ FrameRequest() : opt(), input(), output() {}
+		__host__ __device__ FrameRequest(const FrameRequest& c) : opt(c.opt), input(c.input), output(c.output) {}
+		__host__ __device__ FrameRequest(const FrameRequestMarshal& c) : opt(c.opt), input(c.input), output(c.output) {}
 	};
 
-	struct MultiFrameInput : IMultipleInput
+	class MultiFrameInput : IMultipleInput
 	{
+	public:
 		FrameImmutableInput immutable;
 		int mutableInputLen;
 		FrameMutableInput* mutableInputs;
@@ -718,11 +969,25 @@ namespace RadGrabber
 	struct MultiFrameOutput
 	{
 	};
-	struct MultiFrameRequest
+	class MultiFrameRequest
 	{
+	public:
 		RequestOption opt;
 		MultiFrameInput input;
 		MultiFrameOutput output;
 	};
+
+	struct PathContant
+	{
+		int maxDepth;
+		Vector2i textureResolution;
+	};
+	struct CheckItems
+	{
+		int selectedIndex;
+		CameraChunk c;
+		PathContant p;
+	};
+#pragma pack(pop)
 }
 

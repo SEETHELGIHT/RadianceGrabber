@@ -64,11 +64,14 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN64;NDEBUG;GLEW_STATIC;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MinimalRebuild>true</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -83,26 +86,48 @@
       <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <GPUDebugInfo>true</GPUDebugInfo>
       <GenerateLineInfo>true</GenerateLineInfo>
+      <AdditionalOptions>--device-c -c %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <InterleaveSourceInPTX>true</InterleaveSourceInPTX>
+      <FastMath>true</FastMath>
+      <Runtime>InheritFromHost</Runtime>
+      <Emulation>false</Emulation>
+      <HostDebugInfo>false</HostDebugInfo>
+      <RuntimeChecks>InheritFromHost</RuntimeChecks>
+      <TypeInfo>InheritFromHost</TypeInfo>
     </CudaCompile>
     <PostBuildEvent>
-      <Command>del $(SolutionDir)$(UnivUnityProjectDir)$(ProjectName).dll
-copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(UnivUnityProjectDir)$(ProjectName).dll /Y
+      <Command>$(DLLCopyComment) del $(SolutionDir)$(UnivUnityProjectDir)$(ProjectName).dll;
+$(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(UnivUnityProjectDir)$(ProjectName).dll /Y;
+$(DLLCopyComment) 
 del $(SolutionDir)$(StdUnityProjectDir)$(ProjectName).dll
-copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(ProjectName).dll /Y</Command>
+;
+$(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(ProjectName).dll /Y;
+$(DLLCopyComment) 
+del $(SolutionDir)RadianceGrabberTest\(ProjectName).dll
+;
+$(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)RadianceGrabberTest\$(ProjectName).dll /Y;</Command>
     </PostBuildEvent>
+    <CudaLink>
+      <GPUDebugInfo>true</GPUDebugInfo>
+    </CudaLink>
+    <CudaLink>
+      <Optimization>Od</Optimization>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Util.cpp" />
     <ClInclude Include="ColorTarget.h" />
     <ClInclude Include="DeviceConfig.h" />
     <ClInclude Include="Aggregate.h" />
-    <ClInclude Include="Integrator.h" />
-    <ClInclude Include="Marshal.h" />
+    <ClCompile Include="Integrator.h" />
+    <ClCompile Include="Marshal.cuh" />
     <ClInclude Include="DataTypes.cuh" />
     <ClInclude Include="Define.h" />
-    <ClInclude Include="MemUtil.h" />
+    <ClInclude Include="DLLEntry.h" />
+    <ClInclude Include="Util.h" />
     <ClInclude Include="Pipeline.h" />
-    <ClInclude Include="PTEntry.cuh" />
-    <ClInclude Include="Sample.cuh" />
+    <CudaCompile Include="Sample.cuh" />
     <ClInclude Include="Unity\gl3w\gl3w.h" />
     <ClInclude Include="Unity\gl3w\glcorearb.h" />
     <ClInclude Include="Unity\PlatformBase.h" />
@@ -116,16 +141,25 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <ClInclude Include="Unity\Unity\IUnityInterface.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Aggregate.cpp" />
-    <ClCompile Include="ColorTarget.cpp" />
-    <ClCompile Include="DataTypes.cu" />
-    <ClCompile Include="DeviceConfig.cpp" />
+    <CudaCompile Include="Aggregate.cu" />
+    <CudaCompile Include="ColorTarget.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="DataTypes.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="DeviceConfig.cu" />
     <ClCompile Include="DLLEntry.cpp" />
-    <ClCompile Include="Integrator.cpp" />
-    <ClCompile Include="Marshal.cpp" />
-    <ClCompile Include="MemUtil.cpp" />
-    <ClCompile Include="Pipeline.cpp" />
-    <ClCompile Include="Sample.cu" />
+    <CudaCompile Include="Integrator.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="Marshal.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="Pipeline.cu" />
+    <CudaCompile Include="Sample.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <ClCompile Include="Unity\gl3w\gl3w.c" />
     <ClCompile Include="Unity\RenderAPI.cpp" />
     <ClCompile Include="Unity\RenderAPI_D3D11.cpp" />
@@ -145,9 +179,6 @@ copy $(TargetDir)$(ProjectName).dll $(SolutionDir)$(StdUnityProjectDir)$(Project
     <None Include="Unity\RenderAPI_Metal.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="PTEntry.cu" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="TODO.txt" />
