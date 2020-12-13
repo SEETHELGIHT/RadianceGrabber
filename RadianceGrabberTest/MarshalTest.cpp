@@ -10,10 +10,9 @@ namespace RadGrabber
 		*/
 		int MarshalTest()
 		{
-			printf("FrameInput::%d, FrameInputInternal::%d\n", sizeof(FrameInput), sizeof(FrameInputInternal));
-			printf("FrameRequest::%d, FrameRequestMarshal::%d\n", sizeof(FrameRequest), sizeof(FrameRequestMarshal));
-
-			printf("SubmeshDescriptor::%d\n", sizeof(UnitySubMeshDescriptor));
+			printf("FrameInput::%ld, FrameInputInternal::%ld\n", sizeof(FrameInput), sizeof(FrameInputInternal));
+			printf("FrameRequest::%ld, FrameRequestMarshal::%ld\n", sizeof(FrameRequest), sizeof(FrameRequestMarshal));
+			printf("SubmeshDescriptor::%ld\n", sizeof(UnitySubMeshDescriptor));
 
 			return 0;
 		}

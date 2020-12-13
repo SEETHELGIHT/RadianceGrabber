@@ -1,65 +1,84 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="MarshalTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="MatrixTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="RayFromCamera.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="SkyboxViewTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="LogFunctionTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="FrameDataValidateTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="ThreadManagementTest.cpp">
-      <Filter>Test\Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="NormalMappingTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="StaticMeshBuildTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </ClCompile>
-    <ClCompile Include="ConfigUtility.cpp">
-      <Filter>Utility</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="MeshTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </CudaCompile>
     <CudaCompile Include="RayIntersectTest.cpp">
       <Filter>Test\Caluculation</Filter>
     </CudaCompile>
     <CudaCompile Include="SaveFrameRequestTest.cpp">
       <Filter>Test\Caluculation</Filter>
     </CudaCompile>
-    <CudaCompile Include="SphereTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </CudaCompile>
     <CudaCompile Include="HostDeviceCopyTest.cpp">
       <Filter>Test\Caluculation</Filter>
     </CudaCompile>
-    <CudaCompile Include="PathIntegratorTest.cu">
-      <Filter>Test\Modules</Filter>
-    </CudaCompile>
     <CudaCompile Include="main.cu" />
-    <CudaCompile Include="TransformBVHBuildTest.cpp">
-      <Filter>Test\Caluculation</Filter>
-    </CudaCompile>
     <CudaCompile Include="SampleTest.cpp">
       <Filter>Test\Caluculation</Filter>
     </CudaCompile>
+    <CudaCompile Include="TransformBVHBuildTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MeshTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
     <CudaCompile Include="VectorFormula.cpp">
       <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ConfigUtility.h">
+      <Filter>Utility</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ThreadManagementTest.cpp">
+      <Filter>Test\Modules</Filter>
+    </CudaCompile>
+    <CudaCompile Include="SkyboxViewTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
+    <CudaCompile Include="NormalMappingTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MatrixTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MarshalTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
+    <CudaCompile Include="FrameDataValidateTest.cpp">
+      <Filter>Test\Marshal</Filter>
+    </CudaCompile>
+    <CudaCompile Include="RayFromCamera.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="LogFunctionTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </CudaCompile>
+    <CudaCompile Include="TransformBVHUpdateTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="StaticMeshBuildTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="DynamicBVHUpdateTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="DynamicBVHBuildTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AccelAggregateTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IterativeStaticMeshBuildTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IterativeTransformBVHTraversalTest.cpp">
+      <Filter>Test\Acceleration</Filter>
+    </CudaCompile>
+    <CudaCompile Include="HitTestKernelTest.cpp">
+      <Filter>Test\Kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IterativePathIntergratorTest.cpp">
+      <Filter>Test\Modules</Filter>
+    </CudaCompile>
+    <CudaCompile Include="PathIntegratorTest.cpp">
+      <Filter>Test\Modules</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
@@ -75,13 +94,38 @@
     <Filter Include="Test\Caluculation">
       <UniqueIdentifier>{8d9e8db4-a1e2-46dd-881f-cefe91dc1900}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Test\Acceleration">
+      <UniqueIdentifier>{b01018a9-6aeb-48e8-a4b3-2101069818ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test\Marshal">
+      <UniqueIdentifier>{20bfe2bc-2222-48ab-818f-d717927266e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test\Kernels">
+      <UniqueIdentifier>{e37d8905-8ee2-4a52-9db3-18a6255773f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Test\OpenCV">
+      <UniqueIdentifier>{5465b9d4-4245-4de4-8c12-581fb8f2ccb2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="image.ini" />
+    <None Include="frame_path.ini" />
+    <None Include="project.ini" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ConfigUtility.h">
+    <ClCompile Include="ConfigUtility.cpp">
       <Filter>Utility</Filter>
-    </ClInclude>
+    </ClCompile>
+    <ClCompile Include="PixelToPNGTest.cpp">
+      <Filter>Test\OpenCV</Filter>
+    </ClCompile>
+    <ClCompile Include="PNGToMJPGTest.cpp">
+      <Filter>Test\OpenCV</Filter>
+    </ClCompile>
+    <ClCompile Include="SingleRayTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
+    <ClCompile Include="MicrofacetFunctionTest.cpp">
+      <Filter>Test\Caluculation</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

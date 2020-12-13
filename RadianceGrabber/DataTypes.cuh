@@ -5,10 +5,83 @@
 
 namespace RadGrabber
 {
-#define PI                3.1415926535897932384626422832795028841971f
-#define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
-#define EPSILON           0.00001f
+#define EPSILON           0.001f
+#define Pi2				(6.28318530717958647692f)
+#define Pi				(3.14159265358979323846f)
+#define InvPi			(0.31830988618379067154f)
+#define Inv2Pi			(0.15915494309189533577f)
+#define Inv4Pi			(0.07957747154594766788f)
+#define PiOver2			(1.57079632679489661923f)
+#define PiOver4			(0.78539816339744830961f)
+#define Sqrt2			(1.41421356237309504880f)
+
+	__forceinline__ __host__ __device__ float Lerp(float start, float end, float norm)
+	{
+		return start * (1.f - norm) + end * norm;
+	}
+	__forceinline__ __host__ __device__ double Lerp(double start, double end, double norm)
+	{
+		return start * (1. - norm) + end * norm;
+	}
+	__forceinline__ __host__ __device__ long double Lerp(long double start, long double end, long double norm)
+	{
+		return start * (1.L - norm) + end * norm;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ Type Abs(Type val)
+	{
+		if (val < 0)
+			return -val;
+		else
+			return val;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ float Abs(float val)
+	{
+		return fabs(val);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ double Abs(double val)
+	{
+		return fabs(val);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ long double Abs(long double val)
+	{
+		return fabs(val);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ Type Clamp(Type val, Type min, Type max)
+	{
+		if (val < min)
+			return min;
+		else if (val > max)
+			return max;
+		else
+			return val;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ float Clamp(float val, float min, float max)
+	{
+		return fmax(min, fmin(max, val));
+	}
+	template <typename Type>
+	__forceinline__ __device__ __host__ double Clamp(double val, double min, double max)
+	{
+		return fmax(min, fmin(max, val));
+	}
+	template <typename Type>
+	__forceinline__ __device__ __host__ long double Clamp(long double val, long double min, long double max)
+	{
+		return fmax(min, fmin(max, val));
+	}
 
 	__host__ float RandomFloat(float min, float max);
 
@@ -112,6 +185,43 @@ namespace RadGrabber
 	}
 
 	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator==(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x == v2.x && v1.y == v2.y;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator!=(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x != v2.x || v1.y != v2.y;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x < v2.x && v1.y < v2.y;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<=(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x <= v2.x && v1.y <= v2.y;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x > v2.x && v1.y > v2.y;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>=(const Vector2<Type>& v1, const Vector2<Type>& v2)
+	{
+		return v1.x >= v2.x && v1.y >= v2.y;
+	}
+
+
+	template <typename Type>
 	__forceinline__ __device__ __host__ Vector2<Type> operator+(Vector2<Type> v1, Vector2<Type> v2)
 	{
 		return Vector2<Type>(v1.x + v2.x, v1.y + v2.y);
@@ -179,11 +289,7 @@ namespace RadGrabber
 
 	inline Vector2i Round(const Vector2f& vf)
 	{
-#ifdef __CUDA_ARCH__
-		return Vector2i(roundf(vf.x), roundf(vf.y));
-#else
-		return Vector2i(round(vf.x), round(vf.y));
-#endif
+		return Vector2i(int(vf.x + 0.5), int(vf.y + 0.5));
 	}
 
 	template <typename Type>
@@ -202,7 +308,10 @@ namespace RadGrabber
 		};
 
 		__forceinline__ __device__ __host__ Vector3() : x(0), y(0), z(0) { }
+		__forceinline__ __device__ __host__ Vector3(Type val) : x(val), y(val), z(val) {}
 		__forceinline__ __device__ __host__ Vector3(Type x, Type y, Type z) : x(x), y(y), z(z) {}
+		__forceinline__ __device__ __host__ Vector3(const Vector2<Type>& v, const Type& o) : x(v.x), y(v.y), z(o) {}
+		__forceinline__ __device__ __host__ Vector3(const Type& o, const Vector2<Type>& v) : x(o), y(v.x), z(v.y) {}
 		__forceinline__ __device__ __host__ Vector3(const Vector3<Type>& v) : x(v.x), y(v.y), z(v.z) {}
 
 		__forceinline__ __device__ __host__ operator Vector2<Type>() const;
@@ -328,15 +437,63 @@ namespace RadGrabber
 	}
 
 	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<(const Vector3<Type>& v1, const Vector3<Type>& v2)
+	{
+		return v1.x < v2.x && v1.y < v2.y && v1.z < v2.z;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<=(const Vector3<Type>& v1, const Vector3<Type>& v2)
+	{
+		return v1.x <= v2.x && v1.y <= v2.y && v1.z <= v2.z;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>(const Vector3<Type>& v1, const Vector3<Type>& v2)
+	{
+		return v1.x > v2.x && v1.y > v2.y && v1.z > v2.z;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>=(const Vector3<Type>& v1, const Vector3<Type>& v2)
+	{
+		return v1.x >= v2.x && v1.y >= v2.y && v1.z >= v2.z;
+	}
+
+	template <typename Type>
 	__forceinline__ __device__ __host__ Vector3<Type> operator+(Vector3<Type> v1, Vector3<Type> v2)
 	{
 		return Vector3<Type>(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
 	}
 
 	template <typename Type>
+	__forceinline__ __device__ __host__ Vector3<Type> operator+(Type t, Vector3<Type> v1)
+	{
+		return Vector3<Type>(v1.x + t, v1.y + t, v1.z + t);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ Vector3<Type> operator+(Vector3<Type> v1, Type t)
+	{
+		return Vector3<Type>(v1.x + t, v1.y + t, v1.z + t);
+	}
+
+	template <typename Type>
 	__forceinline__ __device__ __host__ Vector3<Type> operator-(Vector3<Type> v1, Vector3<Type> v2)
 	{
 		return Vector3<Type>(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ Vector3<Type> operator-(Type t, Vector3<Type> v1)
+	{
+		return Vector3<Type>(t - v1.x, t - v1.y, t - v1.z);
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ Vector3<Type> operator-(Vector3<Type> v1, Type t)
+	{
+		return Vector3<Type>(v1.x - t, v1.y - t, v1.z - t);
 	}
 
 	template <typename Type>
@@ -429,6 +586,26 @@ namespace RadGrabber
 		return MAX(v.x, MAX(v.y, v.z));
 	}
 
+	template <typename T>
+	__forceinline__ __host__ __device__ const Vector3<T> Clamp(const Vector3<T> &val, const Vector3<T>& min, const Vector3<T>& max) {
+		return Vector3<T>(Clamp(val.x, min.x, max.x), Clamp(val.y, min.y, max.y), Clamp(val.z, min.z, max.z));
+	}
+
+	template <typename T>
+	__forceinline__ __host__ __device__ const Vector3<T> Clamp(const Vector3<T> &val, T min, const Vector3<T>& max) {
+		return Vector3<T>(Clamp(val.x, min, max.x), Clamp(val.y, min, max.y), Clamp(val.z, min, max.z));
+	}
+
+	template <typename T>
+	__forceinline__ __host__ __device__ const Vector3<T> Clamp(const Vector3<T> &val, const Vector3<T>& min, T max) {
+		return Vector3<T>(Clamp(val.x, min.x, max), Clamp(val.y, min.y, max), Clamp(val.z, min.z, max));
+	}
+
+	template <typename T>
+	__forceinline__ __host__ __device__ const Vector3<T> Clamp(const Vector3<T> &val, T min, T max) {
+		return Vector3<T>(Clamp(val.x, min, max), Clamp(val.y, min, max), Clamp(val.z, min, max));
+	}
+
 	template <>
 	__forceinline__ __host__ __device__ Vector3<float> Min(const Vector3<float> &p1, const Vector3<float> &p2) {
 #ifndef __CUDA_ARCH__
@@ -502,8 +679,21 @@ namespace RadGrabber
 #ifdef __CUDA_ARCH__
 		return Vector3i(roundf(vf.x), roundf(vf.y), roundf(vf.z));
 #else
-		return Vector3i(round(vf.x), round(vf.y), round(vf.z));
+		return Vector3i((int)round(vf.x), (int)round(vf.y), (int)round(vf.z));
 #endif
+	}
+
+	__forceinline__ __host__ __device__ Vector3f Lerp(const Vector3f& start, const Vector3f& end, float norm)
+	{
+		return (1.f - norm) * start + end * norm;
+	}
+	__forceinline__ __host__ __device__ Vector3lf Lerp(const Vector3lf& start, const Vector3lf& end, double norm)
+	{
+		return (1. - norm) * start + end * norm;
+	}
+	__forceinline__ __host__ __device__ Vector3qf Lerp(const Vector3qf& start, const Vector3qf& end, long double norm)
+	{
+		return (1.L - norm) * start + end * norm;
 	}
 
 	template <typename Type>
@@ -524,6 +714,12 @@ namespace RadGrabber
 
 		__forceinline__ __device__ __host__ Vector4() : x(0), y(0), z(0), w(0) { }
 		__forceinline__ __device__ __host__ Vector4(Type x, Type y, Type z, Type w) : x(x), y(y), z(z), w(w) {}
+		__forceinline__ __device__ __host__ Vector4(const Vector2<Type>& v0, const Vector2<Type>& v1) : x(v0.x), y(v0.y), z(v1.x), w(v1.y) {}
+		__forceinline__ __device__ __host__ Vector4(const Vector2<Type>& v, const Type& o0, const Type& o1) : x(v.x), y(v.y), z(o0), w(o1) {}
+		__forceinline__ __device__ __host__ Vector4(const Type& o0, const Vector2<Type>& v, const Type& o1) : x(o0), y(v.x), z(v.y), w(o1) {}
+		__forceinline__ __device__ __host__ Vector4(const Type& o0, const Type& o1, const Vector2<Type>& v) : x(o0), y(o1), z(v.x), w(v.y) {}
+		__forceinline__ __device__ __host__ Vector4(const Vector3<Type>& v, const Type& o) : x(v.x), y(v.y), z(v.z), w(o) {}
+		__forceinline__ __device__ __host__ Vector4(const Type& o, const Vector3<Type>& v) : x(o), y(v.x), z(v.y), w(v.z) {}
 		__forceinline__ __device__ __host__ Vector4(const Vector4<Type>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
 
 		__forceinline__ __device__ __host__ operator Vector2<Type>() const;
@@ -600,7 +796,7 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ static Vector4<Type> Zero() { return Vector4<Type>(0, 0, 0, 0); }
 		__forceinline__ __device__ __host__ static Vector4<Type> One() { return Vector4<Type>(1, 1, 1, 1); }
 
-		__forceinline__ __device__ __host__ inline Vector3<Type>& GetVec3() 
+		__forceinline__ __device__ __host__ Vector3<Type>& GetVec3() 
 		{
 			return Vector3<Type>(x, y, z);
 		}
@@ -616,6 +812,42 @@ namespace RadGrabber
 	__device__ __host__ Vector4<Type> Reflect(const Vector4<Type>& v, const Vector4<Type>& n)
 	{
 		return v - 2 * Dot<Type>(v, n) * n;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator==(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x == v2.x && v1.y == v2.y && v1.z == v2.z && v1.w == v2.w;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator!=(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x != v2.x || v1.y != v2.y || v1.z != v2.z || v1.w != v2.w;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x < v2.x && v1.y < v2.y && v1.z < v2.z && v1.w < v2.w;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator<=(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x <= v2.x && v1.y <= v2.y && v1.z <= v2.z && v1.w <= v2.w;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x > v2.x && v1.y > v2.y && v1.z > v2.z && v1.w > v2.w;
+	}
+
+	template <typename Type>
+	__forceinline__ __device__ __host__ bool operator>=(const Vector4<Type>& v1, const Vector4<Type>& v2)
+	{
+		return v1.x >= v2.x && v1.y >= v2.y && v1.z >= v2.z && v1.w >= v2.w;
 	}
 
 	template <typename Type>
@@ -686,11 +918,7 @@ namespace RadGrabber
 
 	inline Vector4i Round(const Vector4f& vf)
 	{
-#ifdef __CUDA_ARCH__
-		return Vector4i(roundf(vf.x), roundf(vf.y), roundf(vf.z), roundf(vf.w));
-#else
-		return Vector4i(round(vf.x), round(vf.y), round(vf.z), round(vf.w));
-#endif
+		return Vector4i((int)(vf.x + 0.5f), (int)(vf.y + 0.5f), (int)(vf.z + 0.5f), (int)(vf.w + 0.5f));
 	}
 
 	template <typename Type>
@@ -854,31 +1082,88 @@ namespace RadGrabber
 		{
 			return Vector3f(r, g, b);
 		}
+		__forceinline__ __device__ __host__ operator const Vector3f&() const
+		{
+			return *(Vector3f*)this;
+		}
+		__forceinline__ __device__ __host__ operator Vector3f&()
+		{
+			return *(Vector3f*)this;
+		}
+		__forceinline__ __device__ __host__ float Luminance() const
+		{
+			return 0.212671f * r + 0.715160f * g + 0.072169f * b;
+		}
 	};
 
-	__forceinline__ __device__ __host__ ColorRGB operator*(ColorRGB v1, ColorRGB v2)
+	__forceinline__ __device__ __host__ ColorRGB operator*(const ColorRGB& v1, const ColorRGB& v2)
 	{
 		return ColorRGB(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b);
 	}
 
-	__forceinline__ __device__ __host__ ColorRGB operator+(ColorRGB v1, ColorRGB v2)
+	__forceinline__ __device__ __host__ ColorRGB operator*(const Vector3f& v1, const ColorRGB& v2)
+	{
+		return ColorRGB(v1.x * v2.r, v1.y * v2.g, v1.z * v2.b);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator*(const ColorRGB& v1, const Vector3f& v2)
+	{
+		return ColorRGB(v1.r * v2.x, v1.g * v2.y, v1.b * v2.z);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator+(const ColorRGB& v1, const ColorRGB& v2)
 	{
 		return ColorRGB(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b);
 	}
 
-	__forceinline__ __device__ __host__ ColorRGB operator*(float t, ColorRGB v)
+	__forceinline__ __device__ __host__ ColorRGB operator+(const Vector3f& v1, const ColorRGB& v2)
+	{
+		return ColorRGB(v1.x + v2.r, v1.y + v2.g, v1.z + v2.b);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator+(const ColorRGB& v1, const Vector3f& v2)
+	{
+		return ColorRGB(v1.r + v2.x, v1.g + v2.y, v1.b + v2.z);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator*(float t, const ColorRGB& v)
 	{
 		return ColorRGB(v.r * t, v.g * t, v.b * t);
 	}
 
-	__forceinline__ __device__ __host__ ColorRGB operator*(ColorRGB v, float t)
+	__forceinline__ __device__ __host__ ColorRGB operator*(const ColorRGB& v, float t)
 	{
 		return ColorRGB(v.r * t, v.g * t, v.b * t);
 	}
 
-	__forceinline__ __device__ __host__ ColorRGB operator/(ColorRGB v, float t)
+	__forceinline__ __device__ __host__ ColorRGB operator/(float t, const ColorRGB& v)
+	{
+		return ColorRGB(t / v.r, t / v.g, t / v.b);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator/(const ColorRGB& v, float t)
 	{
 		return ColorRGB(v.r / t, v.g / t, v.b / t);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator+(float t, const ColorRGB& v)
+	{
+		return ColorRGB(t + v.r, t + v.g, t + v.b);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator+(const ColorRGB& v, float t)
+	{
+		return ColorRGB(v.r + t, v.g + t, v.b + t);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator-(float t, const ColorRGB& v)
+	{
+		return ColorRGB(t - v.r, t - v.g, t - v.b);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGB operator-(const ColorRGB& v, float t)
+	{
+		return ColorRGB(v.r - t, v.g - t, v.b - t);
 	}
 
 	struct ColorRGBA
@@ -898,8 +1183,18 @@ namespace RadGrabber
 		__forceinline__ __device__ __host__ ColorRGBA() : r(0), g(0), b(0), a(0) {}
 		__forceinline__ __device__ __host__ ColorRGBA(float r, float g, float b, float a) : r(r), g(g), b(b), a(a) {}
 		__forceinline__ __device__ __host__ ColorRGBA(const ColorRGBA& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+		__forceinline__ __device__ __host__ ColorRGBA(const ColorRGB& c) : r(c.r), g(c.g), b(c.b), a(1.f) {}
+		__forceinline__ __device__ __host__ ColorRGBA(const ColorRGB& c, float alpha) : r(c.r), g(c.g), b(c.b), a(alpha) {}
 		__forceinline__ __device__ __host__ ColorRGBA(const Vector4f& v) : r(v.x), g(v.y), b(v.z), a(v.w) {}
 
+		__forceinline__ __device__ __host__ operator const ColorRGB&() const
+		{
+			return *(ColorRGB*)this;
+		}
+		__forceinline__ __device__ __host__ operator ColorRGB&()
+		{
+			return *(ColorRGB*)this;
+		}
 		__forceinline__ __device__ __host__ static ColorRGBA One()
 		{
 			return ColorRGBA(1, 1, 1, 1);
@@ -908,11 +1203,41 @@ namespace RadGrabber
 		{
 			return ColorRGBA(1, 1, 1, 1);
 		}
+		__forceinline__ __device__ __host__ operator const Vector4f&() const
+		{
+			return *(Vector4f*)this;
+		}
+		__forceinline__ __device__ __host__ operator const Vector3f&() const
+		{
+			return *(Vector3f*)this;
+		}
+		__forceinline__ __device__ __host__ operator Vector4f&()
+		{
+			return *(Vector4f*)this;
+		}
+		__forceinline__ __device__ __host__ operator Vector3f&()
+		{
+			return *(Vector3f*)this;
+		}
+		__forceinline__ __device__ __host__ float Luminance() const
+		{
+			return 0.212671f * r + 0.715160f * g + 0.072169f * b;
+		}
 	};
 
 	__forceinline__ __device__ __host__ ColorRGBA operator+(ColorRGBA v1, ColorRGBA v2)
 	{
 		return ColorRGBA(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b, v1.a + v2.a);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator+(ColorRGB v1, ColorRGBA v2)
+	{
+		return ColorRGBA(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b, v2.a);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator+(ColorRGBA v1, ColorRGB v2)
+	{
+		return ColorRGBA(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b, v1.a);
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA operator-(ColorRGBA v1, ColorRGBA v2)
@@ -923,6 +1248,26 @@ namespace RadGrabber
 	__forceinline__ __device__ __host__ ColorRGBA operator*(ColorRGBA v, float t)
 	{
 		return ColorRGBA(v.r * t, v.g * t, v.b * t, v.a * t);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator*(const ColorRGBA& v, const Vector3f& t)
+	{
+		return ColorRGBA(v.r * t.x, v.g * t.y, v.b * t.z, v.a);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator*(const Vector3f& t, const ColorRGBA& v)
+	{
+		return ColorRGBA(v.r * t.x, v.g * t.y, v.b * t.z, v.a);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator*(const ColorRGBA& v, const Vector4f& t)
+	{
+		return ColorRGBA(v.r * t.x, v.g * t.y, v.b * t.z, v.a * t.w);
+	}
+
+	__forceinline__ __device__ __host__ ColorRGBA operator*(const Vector4f& t, const ColorRGBA& v)
+	{
+		return ColorRGBA(v.r * t.x, v.g * t.y, v.b * t.z, v.a * t.w);
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA operator*(ColorRGBA v1, ColorRGBA v2)
@@ -972,39 +1317,53 @@ namespace RadGrabber
 		}
 	};
 
+	// this operators cause over,underflow
 	__forceinline__ __device__ __host__ ColorRGBA32 operator+(ColorRGBA32 v1, ColorRGBA32 v2)
 	{
-		return ColorRGBA32(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b, v1.a + v2.a);
+		return ColorRGBA32(byte(v1.r + v2.r), byte(v1.g + v2.g), byte(v1.b + v2.b), byte(v1.a + v2.a));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 operator-(ColorRGBA32 v1, ColorRGBA32 v2)
 	{
-		return ColorRGBA32(v1.r - v2.r, v1.g - v2.g, v1.b - v2.b, v1.a - v2.a);
+		return ColorRGBA32(byte(v1.r - v2.r), byte(v1.g - v2.g), byte(v1.b - v2.b), byte(v1.a - v2.a));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 operator*(ColorRGBA32 v, float t)
 	{
-		return ColorRGBA32(v.r * t, v.g * t, v.b * t, v.a * t);
+		return ColorRGBA32(byte(v.r * t), byte(v.g * t), byte(v.b * t), byte(v.a * t));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 operator*(ColorRGBA32 v1, ColorRGBA32 v2)
 	{
-		return ColorRGBA32(v1.r * v2.r, v1.g * v2.g, v1.b * v2.b, v1.a * v2.a);
+		return ColorRGBA32(byte(v1.r * v2.r), byte(v1.g * v2.g), byte(v1.b * v2.b), byte(v1.a * v2.a));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 operator*(float t, ColorRGBA32 v)
 	{
-		return ColorRGBA32(v.r * t, v.g * t, v.b * t, v.a * t);
+		return ColorRGBA32(byte(v.r * t), byte(v.g * t), byte(v.b * t), byte(v.a * t));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 operator/(ColorRGBA32 v, float t)
 	{
-		return ColorRGBA32(v.r / t, v.g / t, v.b / t, v.a / t);
+		return ColorRGBA32(byte(v.r / t), byte(v.g / t), byte(v.b / t), byte(v.a / t));
 	}
 
 	__forceinline__ __device__ __host__ ColorRGBA32 GetUNorm32(ColorRGBA& c)
 	{
-		return ColorRGBA32(c.r * 255, c.g * 255, c.b * 255, c.a * 255);
+		return ColorRGBA32(byte(c.r * 255), byte(c.g * 255), byte(c.b * 255), byte(c.a * 255));
+	}
+
+	__forceinline__ __device__ __host__ float Luminance(const ColorRGB& c)
+	{
+		return 0.212671f * c.r + 0.715160f * c.g + 0.072169f * c.b;
+	}
+	__forceinline__ __device__ __host__ float Luminance(const ColorRGBA& c)
+	{
+		return 0.212671f * c.r + 0.715160f * c.g + 0.072169f * c.b;
+	}
+	__forceinline__ __device__ __host__ float Luminance(const Vector3f& v)
+	{
+		return 0.212671f * v.x + 0.715160f * v.y + 0.072169f * v.z;
 	}
 
 	/*
@@ -1051,10 +1410,12 @@ namespace RadGrabber
 		{
 			m00 = m10 = m20 = m30 = m01 = m11 = m12 = m13 = m02 = m12 = m22 = m32 = m03 = m13 = m23 = m33 = 0;
 		}
-		__forceinline__ __device__ __host__ Matrix4x4(const Matrix4x4& mat)
-		{
-			memcpy(data, mat.data, sizeof(Matrix4x4)); 
-		}
+		__forceinline__ __device__ __host__ Matrix4x4(const Matrix4x4& mat) :
+			m00(mat.m00), m10(mat.m10), m20(mat.m20), m30(mat.m30),
+			m01(mat.m01), m11(mat.m11), m21(mat.m21), m31(mat.m31),
+			m02(mat.m02), m12(mat.m12), m22(mat.m22), m32(mat.m32),
+			m03(mat.m03), m13(mat.m13), m23(mat.m23), m33(mat.m33)
+		{}
 		__forceinline__ __device__ __host__ Matrix4x4(const Vector4f& v0, const Vector4f& v1, const Vector4f& v2, const Vector4f& v3)
 		{
 			this->v0 = v0;
@@ -1066,23 +1427,41 @@ namespace RadGrabber
 
 		__device__ __host__ Vector3f TransformPoint(const Vector3f& pt) const
 		{
-			Vector3f result;
-			result.x = m00 * pt.x + m01 * pt.y + m02 * pt.z + m03;
-			result.y = m10 * pt.x + m11 * pt.y + m12 * pt.z + m13;
-			result.z = m20 * pt.x + m21 * pt.y + m22 * pt.z + m23;
-			float num = m30 * pt.x + m31 * pt.y + m32 * pt.z + m33;
-			num = 1.f / num;
-			result.x *= num;
-			result.y *= num;
-			result.z *= num;
+			Vector4f result;
+			
+			result.x = m00 * pt.x;
+			result.y = m10 * pt.x;
+			result.z = m20 * pt.x;
+			result.w = m30 * pt.x;
+			result.x += m01 * pt.y;
+			result.y += m11 * pt.y;
+			result.z += m21 * pt.y;
+			result.w += m31 * pt.y;
+			result.x += m02 * pt.z;
+			result.y += m12 * pt.z;
+			result.z += m22 * pt.z;
+			result.w += m32 * pt.z;
+			result.x += m03;
+			result.y += m13;
+			result.z += m23;
+			result.w += m33;
+			result.x /= result.w;
+			result.y /= result.w;
+			result.z /= result.w;
 			return result;
 		}
 		__device__ __host__ Vector3f TransformVector(const Vector3f& v) const
 		{
 			Vector3f result;
-			result.x = m00 * v.x + m01 * v.y + m02 * v.z;
-			result.y = m10 * v.x + m11 * v.y + m12 * v.z;
-			result.z = m20 * v.x + m21 * v.y + m22 * v.z;
+			result.x = m00 * v.x;
+			result.y = m10 * v.x;
+			result.z = m20 * v.x;
+			result.x += m01 * v.y;
+			result.y += m11 * v.y;
+			result.z += m21 * v.y;
+			result.x += m02 * v.z;
+			result.y += m12 * v.z;
+			result.z += m22 * v.z;
 			return result;
 		}
 
@@ -1113,12 +1492,24 @@ namespace RadGrabber
 		};
 
 		__forceinline__ __device__ __host__ Ray() { }
-		__forceinline__ __device__ __host__ Ray(const Vector3f& o, const Vector3f& d) { origin = o; direction = d; }
 		__forceinline__ __device__ __host__ Ray(const Ray& r) : origin(r.origin), direction(r.direction) { }
+		__forceinline__ __device__ __host__ Ray(const Vector3f& o, const Vector3f& d) : origin(o), direction(d) { }
+
+		__forceinline__ __device__ __host__ Ray& operator=(const Ray& r)
+		{
+			this->origin = r.origin;
+			this->direction = r.direction;
+			return *this;
+		}
 
 		__forceinline__ __device__ __host__ Vector3f GetPosAt(float t) const
 		{
 			return origin + direction * t;
+		}
+
+		__forceinline__ __device__ __host__ Ray Inversed() const
+		{
+			return Ray(origin, -direction);
 		}
 	};
 
@@ -1145,105 +1536,7 @@ namespace RadGrabber
 			return *this;
 		}
 
-		//__device__ __host__ int IntersectAsHyperPlane(const Ray& r, SpaceSplitAxis ax, float hyperPlane, float& t)
-		//{
-		//	int flag = 0;
-		//	Vector3f dir_frac = 1.0f / r.direction;
-		//	// lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
-		//	// r.org is origin of ray
-		//	Vector3f	smp, bgp;
-
-		//	smp = center - extents / 2;
-		//	bgp = center + extents / 2;
-
-		//	smp[(int)ax - 1] = smp[(int)ax - 1] - extents[(int)ax - 1] / 2;
-		//	bgp[(int)ax - 1] = bgp[(int)ax - 1] - extents[(int)ax - 1] / 2;
-
-		//	float t1 = (smp.x - r.origin.x) * dir_frac.x;
-		//	float t2 = (bgp.x - r.origin.x) * dir_frac.x;
-		//	float t3 = (smp.y - r.origin.y) * dir_frac.y;
-		//	float t4 = (bgp.y - r.origin.y) * dir_frac.y;
-		//	float t5 = (smp.z - r.origin.z) * dir_frac.z;
-		//	float t6 = (bgp.z - r.origin.z) * dir_frac.z;
-
-		//	float tmin = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
-		//	float tmax = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
-
-		//	if (tmax >= 0 && tmin <= tmax)
-		//	{
-		//		t = tmin;
-		//		flag |= 0x01;
-		//	}
-
-		//	smp[(int)ax - 1] = smp[(int)ax - 1] + extents[(int)ax - 1];
-		//	bgp[(int)ax - 1] = bgp[(int)ax - 1] + extents[(int)ax - 1];
-
-		//	t1 = (smp.x - r.origin.x) * dir_frac.x;
-		//	t2 = (bgp.x - r.origin.x) * dir_frac.x;
-		//	t3 = (smp.y - r.origin.y) * dir_frac.y;
-		//	t4 = (bgp.y - r.origin.y) * dir_frac.y;
-		//	t5 = (smp.z - r.origin.z) * dir_frac.z;
-		//	t6 = (bgp.z - r.origin.z) * dir_frac.z;
-
-		//	tmin = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
-		//	tmax = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
-
-		//	if (tmax >= 0 && tmin <= tmax)
-		//	{
-		//		t = fmin(t, tmin);
-		//		flag |= 0x02;
-		//	}
-
-		//	return flag;
-		//}
-
-		//__device__ __host__ int IntersectAsHyperPlane(const Ray& r, SpaceSplitAxis ax, float hyperPlane)
-		//{
-		//	int flag = 0;
-		//	Vector3f dir_frac = 1.0f / r.direction;
-		//	// lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
-		//	// r.org is origin of ray
-		//	Vector3f	smp, bgp;
-
-		//	smp = center - extents / 2;
-		//	bgp = center + extents / 2;
-
-		//	smp[(int)ax - 1] = smp[(int)ax - 1] - extents[(int)ax - 1] / 2;
-		//	bgp[(int)ax - 1] = bgp[(int)ax - 1] - extents[(int)ax - 1] / 2;
-
-		//	float t1 = (smp.x - r.origin.x) * dir_frac.x;
-		//	float t2 = (bgp.x - r.origin.x) * dir_frac.x;
-		//	float t3 = (smp.y - r.origin.y) * dir_frac.y;
-		//	float t4 = (bgp.y - r.origin.y) * dir_frac.y;
-		//	float t5 = (smp.z - r.origin.z) * dir_frac.z;
-		//	float t6 = (bgp.z - r.origin.z) * dir_frac.z;
-
-		//	float tmin = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
-		//	float tmax = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
-
-		//	if (tmax >= 0 && tmin <= tmax)
-		//		flag |= 0x01;
-
-		//	smp[(int)ax - 1] = smp[(int)ax - 1] + extents[(int)ax - 1];
-		//	bgp[(int)ax - 1] = bgp[(int)ax - 1] + extents[(int)ax - 1];
-
-		//	t1 = (smp.x - r.origin.x) * dir_frac.x;
-		//	t2 = (bgp.x - r.origin.x) * dir_frac.x;
-		//	t3 = (smp.y - r.origin.y) * dir_frac.y;
-		//	t4 = (bgp.y - r.origin.y) * dir_frac.y;
-		//	t5 = (smp.z - r.origin.z) * dir_frac.z;
-		//	t6 = (bgp.z - r.origin.z) * dir_frac.z;
-
-		//	tmin = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
-		//	tmax = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
-
-		//	if (tmax >= 0 && tmin <= tmax)
-		//		flag |= 0x02;
-
-		//	return flag;
-		//}
-
-		__device__ __host__ bool Intersect(const Ray& r) const
+		__forceinline__ __device__ __host__ bool Intersect(const Ray& r) const
 		{
 			// https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
 			// r.dir is unit direction vector of ray
@@ -1267,7 +1560,7 @@ namespace RadGrabber
 			return tmax >= 0 && tmin <= tmax;
 		}
 
-		__device__ __host__ bool Intersect(const Ray& r, float& t) const
+		__forceinline__ __device__ __host__ bool Intersect(const Ray& r, float& t) const
 		{
 			// https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
 			// r.dir is unit direction vector of ray
@@ -1304,14 +1597,49 @@ namespace RadGrabber
 			return true;
 		}
 
-		__host__ __device__ void Union(const Bounds& b)
+		__forceinline__ __host__ __device__ void Union(const Bounds& b)
 		{
+			Vector3f
+				min = Min(b.center - b.extents, center - extents),
+				max = Max(b.center + b.extents, center + extents);
+
+			center = (max + min) / 2;
+			extents = (max - min) / 2;
 		}
 
-		__host__ __device__ static void Union(Bounds& sb, const Bounds& b)
-		{
-		}
 	};
+
+	__forceinline__ __host__ __device__ Bounds Union(const Bounds& b0, const Bounds& b1)
+	{
+		Vector3f
+			min = Min(b0.center - b0.extents, b1.center - b1.extents),
+			max = Max(b0.center + b0.extents, b1.center + b1.extents);
+
+		return Bounds((min + max) / 2, (max - min) / 2);
+	}
+
+	__forceinline__ __host__ __device__ void Union(const Bounds& b0, const Bounds& b1, Bounds& b)
+	{
+		Vector3f
+			min = Min(b0.center - b0.extents, b1.center - b1.extents),
+			max = Max(b0.center + b0.extents, b1.center + b1.extents);
+
+		b = Bounds((max + min) / 2, (max - min) / 2);
+	}
+
+	__forceinline__ __host__ __device__ Vector3f ToFrameFromBasis(const Vector3f& v, const Vector3f& t, const Vector3f& b, const Vector3f& n)
+	{
+		return Vector3f(Dot(v, t), Dot(v, b), Dot(v, n));
+	}
+
+	__forceinline__ __host__ __device__ Vector3f ToBasisFromFrame(const Vector3f& v, const Vector3f& t, const Vector3f& b, const Vector3f& n)
+	{
+		return
+			Vector3f(
+				t.x * v.x + b.x * v.y + n.x * v.z,
+				t.y * v.x + b.y * v.y + n.y * v.z,
+				t.z * v.x + b.z * v.y + n.z * v.z);
+	}
 
 	struct SurfaceIntersection
 	{
@@ -1322,35 +1650,34 @@ namespace RadGrabber
 		{
 			struct
 			{
-				int isGeometry : 1;
-				int materialIndex : 31;
-				Vector2f uv;
+				uint isHit : 1;
+				uint isGeometry : 1; // true : itemIndex==materialIndex, false : itemIndex==lightIndex
+				int itemIndex : 30;
 			};
-			struct
-			{
-				int isNotLight : 1;
-				int lightIndex : 31;
-				Vector3f color;
-			};
+			int flags;
 		};
+		Vector2f uv;
 
 		__forceinline__ __host__ __device__ SurfaceIntersection() {}
-		__forceinline__ __host__ __device__ SurfaceIntersection(const SurfaceIntersection& v) : 
-			position(v.position), normal(v.normal), tangent(v.tangent), 
-			isNotLight(v.isNotLight), lightIndex(v.lightIndex), color(v.color) 
-		{
-		}
-		__forceinline__ __device__ __host__ SurfaceIntersection& operator=(const SurfaceIntersection& v)
-		{
-			position = v.position;
-			normal = v.normal;
-			tangent = v.tangent;
-			isNotLight = v.isNotLight;
-			lightIndex = v.lightIndex;
-			color = v.color;
 
-			return *this;
+		__forceinline__ __host__ __device__ Vector3f WorldToSurface(const Vector3f& v) const
+		{
+			Vector3f ss = Cross(normal, tangent);
+			return ToFrameFromBasis(v, tangent, ss, normal);
 		}
+		__forceinline__ __host__ __device__ Vector3f SurfaceToWorld(const Vector3f &v) const {
+			Vector3f ss = Cross(normal, tangent);
+			return ToBasisFromFrame(v, tangent, ss, normal);
+		}
+	};
+
+	template<typename T>
+	struct HostDevicePair
+	{
+		T host;
+		T device;
+
+		__host__ HostDevicePair(T host, T device) : host(host), device(device) {}
 	};
 
 }

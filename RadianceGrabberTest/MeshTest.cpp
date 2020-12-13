@@ -1,4 +1,5 @@
 #include <cuda_runtime_api.h>
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
 #include <chrono>
 
@@ -44,7 +45,7 @@ namespace RadGrabber
 			fclose(fp);
 
 			FrameInput* din = nullptr;
-			AllocateDeviceMem(req, &din);
+			AllocateDeviceFrameRequest(req, &din);
 			
 			MeshTest2 << <1, 1 >> > (din);
 

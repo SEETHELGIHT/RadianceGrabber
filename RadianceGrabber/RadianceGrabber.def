@@ -5,8 +5,9 @@ EXPORTS
 	UnityPluginLoad
 	UnityPluginUnload
 	GetRenderEventFunc
-
+	
 	SaveSingleFrameRequest
+	SaveMultiFrameRequest
 	FlushLog
 	
 	GenerateSingleFrameIncremental
@@ -14,8 +15,13 @@ EXPORTS
 	IsSingleFrameGenerating
 
 	GenerateMultiFrameIncremental
+	GenerateMultiFrameIncrementalRanged
 	StopGenerateMultiFrame
 	GetGeneratedCurrentFrameIndex
+	IsMultiFrameGenerating
+
+	ImageWrite
+	VideoWrite
 
 	GetDeviceCount
 	GetMaxThreadPerBlock

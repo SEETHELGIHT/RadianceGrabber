@@ -23,10 +23,10 @@
     <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -44,6 +44,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <EnableManagedIncrementalBuild>true</EnableManagedIncrementalBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -69,8 +72,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN64;NDEBUG;GLEW_STATIC;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <MinimalRebuild>true</MinimalRebuild>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
@@ -78,23 +81,29 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world430.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>RadianceGrabber.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>../opencv/lib/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <GPUDebugInfo>true</GPUDebugInfo>
-      <GenerateLineInfo>true</GenerateLineInfo>
-      <AdditionalOptions>--device-c -c %(AdditionalOptions)</AdditionalOptions>
+      <GenerateLineInfo>false</GenerateLineInfo>
+      <AdditionalOptions>--ptxas-options=-dlcm=cg %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <InterleaveSourceInPTX>true</InterleaveSourceInPTX>
       <FastMath>true</FastMath>
-      <Runtime>InheritFromHost</Runtime>
+      <Runtime>MD</Runtime>
       <Emulation>false</Emulation>
       <HostDebugInfo>false</HostDebugInfo>
       <RuntimeChecks>InheritFromHost</RuntimeChecks>
       <TypeInfo>InheritFromHost</TypeInfo>
+      <PtxAsOptionV>true</PtxAsOptionV>
+      <Optimization>Od</Optimization>
+      <MaxRegCount>32</MaxRegCount>
+      <NvccCompilation>compile</NvccCompilation>
+      <Keep>true</Keep>
     </CudaCompile>
     <PostBuildEvent>
       <Command>$(DLLCopyComment) del $(SolutionDir)$(UnivUnityProjectDir)$(ProjectName).dll;
@@ -116,18 +125,32 @@ $(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)RadianceGrab
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BDPTIntegrator.cpp" />
+    <CudaCompile Include="Filters.cpp" />
+    <ClCompile Include="Image.cpp" />
+    <CudaCompile Include="Microfacet.cpp" />
     <ClCompile Include="Util.cpp" />
+    <ClInclude Include="BDPTIntegrator.h" />
     <ClInclude Include="ColorTarget.h" />
     <ClInclude Include="DeviceConfig.h" />
     <ClInclude Include="Aggregate.h" />
-    <ClCompile Include="Integrator.h" />
-    <ClCompile Include="Marshal.cuh" />
+    <ClInclude Include="Filters.h" />
+    <ClInclude Include="Image.h" />
+    <ClInclude Include="Integrator.h" />
+    <ClInclude Include="Marshal.cuh" />
     <ClInclude Include="DataTypes.cuh" />
-    <ClInclude Include="Define.h" />
+    <CudaCompile Include="Define.h" />
+    <ClInclude Include="AcceleratedAggregate.h" />
+    <ClInclude Include="AcceleratedAggregateInternal.h" />
     <ClInclude Include="DLLEntry.h" />
+    <ClInclude Include="Microfacet.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Pipeline.h" />
     <CudaCompile Include="Sample.cuh" />
+    <ClInclude Include="IterativePathIntegrator.h" />
+    <ClInclude Include="PathIntegrator.h" />
+    <ClInclude Include="MLTIntegrator.h" />
+    <ClInclude Include="LinearAggregate.h" />
     <ClInclude Include="Unity\gl3w\gl3w.h" />
     <ClInclude Include="Unity\gl3w\glcorearb.h" />
     <ClInclude Include="Unity\PlatformBase.h" />
@@ -149,7 +172,11 @@ $(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)RadianceGrab
       <FileType>Document</FileType>
     </CudaCompile>
     <CudaCompile Include="DeviceConfig.cu" />
-    <ClCompile Include="DLLEntry.cpp" />
+    <CudaCompile Include="AcceleratedAggregate.cpp" />
+    <CudaCompile Include="AcceleratedAggregateInternal.cpp" />
+    <ClCompile Include="DLLEntry.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-Xptxas -dlcm=cg %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <CudaCompile Include="Integrator.cu">
       <FileType>Document</FileType>
     </CudaCompile>
@@ -160,6 +187,10 @@ $(DLLCopyComment) copy $(TargetDir)$(ProjectName).dll $(SolutionDir)RadianceGrab
     <CudaCompile Include="Sample.cu">
       <FileType>Document</FileType>
     </CudaCompile>
+    <CudaCompile Include="IterativePathIntegrator.cpp" />
+    <CudaCompile Include="PathIntegrator.cpp" />
+    <CudaCompile Include="MLTIntegrator.cpp" />
+    <CudaCompile Include="LinearAggregate.cpp" />
     <ClCompile Include="Unity\gl3w\gl3w.c" />
     <ClCompile Include="Unity\RenderAPI.cpp" />
     <ClCompile Include="Unity\RenderAPI_D3D11.cpp" />

@@ -1,4 +1,5 @@
 #include "DataTypes.cuh"
+#include "Util.h"
 
 #pragma once
 
@@ -15,28 +16,48 @@ namespace RadGrabber
 		__host__ virtual void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA& color) PURE;
 		__host__ virtual void UploadColorFromHost() PURE;
 
-		__host__ __device__ virtual int GetFrameCount() const PURE;
-		__host__ __device__ virtual int GetFrameWidth() const PURE;
-		__host__ __device__ virtual int GetFrameHeight() const PURE;
+		__host__ virtual int GetFrameCount() const PURE;
+		__host__ virtual int GetFrameWidth() const PURE;
+		__host__ virtual int GetFrameHeight() const PURE;
+
+		__host__ virtual void* GetHostColorBuffer() const PURE;
+		__host__ virtual void* GetDeviceColorBuffer() const PURE;
+		__host__ virtual void UploadDeviceToHost() PURE;
+		__host__ virtual void UploadHostToDevice() PURE;
 	};
 
 	class SimpleColorTarget : public RadGrabber::IColorTarget
 	{
 	public:
-		SimpleColorTarget(int w, int h) : w(w), h(h) { mBuffer = new ColorRGBA[w * h]; memset(mBuffer, 0, sizeof(ColorRGBA) * w * h); }
-		~SimpleColorTarget() { delete[] mBuffer; }
+		SimpleColorTarget(int w, int h) : w(w), h(h)
+		{
+			mBuffer = new ColorRGBA[w * h]; memset(mBuffer, 0, sizeof(ColorRGBA) * w * h); 
+			mDeviceBuffer = (ColorRGBA*)MAllocDevice(sizeof(ColorRGBA) * w * h);
+		}
+		~SimpleColorTarget() { delete[] mBuffer; cudaFree(mDeviceBuffer);  }
 
-		virtual __host__ void UpdateColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override
+		__host__ virtual void UpdateColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override
 		{
 			//mBuffer[pixelIndex] = ColorRGBA((float)(pixelIndex % w) / w, (float)(pixelIndex / w) / h, 0.f, 0.f);
-			mBuffer[pixelIndex] = (mBuffer[pixelIndex] * (samplingCount - 1) / samplingCount) + color / samplingCount;
+			mBuffer[pixelIndex] = (mBuffer[pixelIndex] * float(samplingCount - 1) / float(samplingCount)) + color / float(samplingCount);
 		}
-		virtual __host__ void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override { }
-		virtual __host__ void UploadColorFromHost() override { }
+		__host__ virtual void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override { }
+		__host__ virtual void UploadColorFromHost() override { }
 
-		__host__ __device__ virtual int GetFrameCount() const override { return 1; }
-		__host__ __device__ virtual int GetFrameWidth() const override { return w; }
-		__host__ __device__ virtual int GetFrameHeight() const override { return h; }
+		__host__ virtual int GetFrameCount() const override { return 1; }
+		__host__ virtual int GetFrameWidth() const override { return w; }
+		__host__ virtual int GetFrameHeight() const override { return h; }
+
+		__host__ virtual void* GetHostColorBuffer() const override { return mBuffer; }
+		__host__ virtual void* GetDeviceColorBuffer() const override { return mDeviceBuffer; }
+		__host__ virtual void UploadDeviceToHost() override
+		{
+			gpuErrchk(cudaMemcpy(mBuffer, mDeviceBuffer, sizeof(ColorRGBA) * w * h, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+		}
+		__host__ virtual void UploadHostToDevice() override
+		{
+			gpuErrchk(cudaMemcpy(mDeviceBuffer, mBuffer, sizeof(ColorRGBA) * w * h, cudaMemcpyKind::cudaMemcpyHostToDevice));
+		}
 
 		void WritePPM(FILE *fp)
 		{
@@ -53,7 +74,7 @@ namespace RadGrabber
 		}
 
 	public:
-		ColorRGBA* mBuffer;
+		ColorRGBA* mBuffer, *mDeviceBuffer;
 		int w, h;
 	};
 
@@ -67,9 +88,14 @@ namespace RadGrabber
 		__host__ virtual void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA& color) override;
 		__host__ virtual void UploadColorFromHost() override;
 
-		__host__ __device__ virtual int GetFrameCount() const override;
-		__host__ __device__ virtual int GetFrameWidth() const override;
-		__host__ __device__ virtual int GetFrameHeight() const override;
+		__host__ virtual int GetFrameCount() const override;
+		__host__ virtual int GetFrameWidth() const override;
+		__host__ virtual int GetFrameHeight() const override;
+
+		__host__ virtual void* GetHostColorBuffer() const override;
+		__host__ virtual void* GetDeviceColorBuffer() const override;
+		__host__ virtual void UploadDeviceToHost() override;
+		__host__ virtual void UploadHostToDevice() override;
 
 	private:
 		Vector2i mTextureResolution;
@@ -87,6 +113,7 @@ namespace RadGrabber
 		int mNextColorIndex;
 
 		ColorBuffer* mHostColorBuffer;
+		ColorRGBA* mDeviceColorBuffer;
 	};
 
 	/*
@@ -97,10 +124,14 @@ namespace RadGrabber
 	public:
 		__host__ MultiFrameColorTarget(int frameCount, Vector2i textureResolution);
 
+		__host__ virtual void UpdateColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA& color) override;
+		__host__ virtual void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA& color) override;
+		__host__ virtual void UploadColorFromHost() override;
+
 		// ColorTarget을(를) 통해 상속됨
-		virtual __host__ __device__ int GetFrameCount() const override;
-		virtual __host__ __device__ int GetFrameWidth() const override;
-		virtual __host__ __device__ int GetFrameHeight() const override;
+		virtual __host__ int GetFrameCount() const override;
+		virtual __host__ int GetFrameWidth() const override;
+		virtual __host__ int GetFrameHeight() const override;
 
 	};
 }

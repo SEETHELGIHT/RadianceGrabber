@@ -5,9 +5,17 @@
     <StdUnityProjectDir>UnityExampleProjects\StandardForRT\Assets\Plugins\</StdUnityProjectDir>
     <UnivUnityProjectDir>UnityExampleProjects\URPForRT\\Assets\Plugins\</UnivUnityProjectDir>
     <DLLCopyComment>REM</DLLCopyComment>
+    <OpenCVDir>E:\Libraries\opencv\430\</OpenCVDir>
   </PropertyGroup>
   <PropertyGroup />
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(OpenCVDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(OpenCVDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="StdUnityProjectDir">
       <Value>$(StdUnityProjectDir)</Value>
@@ -17,6 +25,9 @@
     </BuildMacro>
     <BuildMacro Include="DLLCopyComment">
       <Value>$(DLLCopyComment)</Value>
+    </BuildMacro>
+    <BuildMacro Include="OpenCVDir">
+      <Value>$(OpenCVDir)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

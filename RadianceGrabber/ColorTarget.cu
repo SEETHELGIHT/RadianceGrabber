@@ -10,6 +10,7 @@ namespace RadGrabber
 		mColorBufferCount = colorBufferCount;
 		mHostColorBuffer = MAllocHost<ColorBuffer>(mColorBufferCount);
 		MSet(mHostColorBuffer, 0, sizeof(SingleFrameColorTarget::ColorBuffer) * mColorBufferCount);
+		mDeviceColorBuffer = (ColorRGBA*)MAllocDevice(sizeof(ColorRGBA) * textureResolution.x * textureResolution.y);
 	}
 
 	__host__ SingleFrameColorTarget::~SingleFrameColorTarget()
@@ -17,17 +18,17 @@ namespace RadGrabber
 		SAFE_HOST_DELETE(mHostColorBuffer);
 	}
 
-	__host__ __device__ int SingleFrameColorTarget::GetFrameCount() const
+	__host__ int SingleFrameColorTarget::GetFrameCount() const
 	{
 		return 1;
 	}
 
-	__host__ __device__ int SingleFrameColorTarget::GetFrameWidth() const
+	__host__ int SingleFrameColorTarget::GetFrameWidth() const
 	{
 		return mTextureResolution.x;
 	}
 
-	__host__ __device__ int SingleFrameColorTarget::GetFrameHeight() const
+	__host__ int SingleFrameColorTarget::GetFrameHeight() const
 	{
 		return mTextureResolution.y;
 	}
@@ -56,21 +57,38 @@ namespace RadGrabber
 		mStartColorIndex = mNextColorIndex = 0;
 	}
 
+	__host__ void* SingleFrameColorTarget::GetHostColorBuffer() const
+	{
+		return mTexturePtr;
+	}
+	__host__ void* SingleFrameColorTarget::GetDeviceColorBuffer() const
+	{
+		return mDeviceColorBuffer;
+	}
+	__host__ void SingleFrameColorTarget::UploadDeviceToHost()
+	{
+		gpuErrchk(cudaMemcpy(mTexturePtr, mDeviceColorBuffer, sizeof(ColorRGBA) * mTextureResolution.x * mTextureResolution.y, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	}
+	__host__ void SingleFrameColorTarget::UploadHostToDevice()
+	{
+		gpuErrchk(cudaMemcpy(mDeviceColorBuffer, mTexturePtr, sizeof(ColorRGBA) * mTextureResolution.x * mTextureResolution.y, cudaMemcpyKind::cudaMemcpyHostToDevice));
+	}
+
 	/*
 		TODO:: MultiFrameColorTarget interface implementation
 	*/
 
-	__host__ __device__ int MultiFrameColorTarget::GetFrameCount() const
+	__host__ int MultiFrameColorTarget::GetFrameCount() const
 	{
 		return 0;
 	}
 
-	__host__ __device__ int MultiFrameColorTarget::GetFrameWidth() const
+	__host__ int MultiFrameColorTarget::GetFrameWidth() const
 	{
 		return 0;
 	}
 
-	__host__ __device__ int MultiFrameColorTarget::GetFrameHeight() const
+	__host__ int MultiFrameColorTarget::GetFrameHeight() const
 	{
 		return 0;
 	}

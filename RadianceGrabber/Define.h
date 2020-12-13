@@ -1,11 +1,12 @@
-#include <d3d11.h>
 #pragma warning( disable : 4819 )
+#include <d3d11.h>
 #include <curand_kernel.h>
 #include <cassert>
-#pragma warning( disable : 4819 )
 #include <cuda_runtime.h>
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdarg>
 #include <cstdio>
+#include <device_launch_parameters.h>
 
 #pragma once
 
@@ -21,8 +22,8 @@ namespace RadGrabber
 #define KLAUNCH_ARGS4(func, grid, block, sh_mem, stream, ...) 
 #endif
 
-#define SAFE_HOST_DELETE(x) if(x) delete x
-#define SAFE_HOST_DELETE_ARRAY(x) if (x) delete[] x
+#define SAFE_HOST_DELETE(x) if(x) delete x, x = nullptr
+#define SAFE_HOST_DELETE_ARRAY(x) if (x) delete[] x, x = nullptr
 #define SAFE_DEVICE_DELETE(x) if(x) cudaFree(x)
 
 #define SAFE_HOST_FREE(x) if(x) { free(x); (x) = nullptr; }
@@ -51,4 +52,65 @@ namespace RadGrabber
 	typedef int int32;
 	typedef unsigned int uint32;
 
+	__forceinline__ __device__
+		int getGlobalIdx_1D_1D() {
+		return blockIdx.x *blockDim.x + threadIdx.x;
+	}
+
+	__forceinline__ __device__
+		int getGlobalIdx_1D_2D() {
+		return blockIdx.x * blockDim.x * blockDim.y
+			+ threadIdx.y * blockDim.x + threadIdx.x;
+	}
+
+	__forceinline__ __device__
+		int getGlobalIdx_1D_3D() {
+		return blockIdx.x * blockDim.x * blockDim.y * blockDim.z
+			+ threadIdx.z * blockDim.y * blockDim.x
+			+ threadIdx.y * blockDim.x + threadIdx.x;
+	}
+	__forceinline__ __device__ int getGlobalIdx_2D_1D() {
+		int blockId = blockIdx.y * gridDim.x + blockIdx.x;
+		int threadId = blockId * blockDim.x + threadIdx.x;
+		return threadId;
+	}
+	__forceinline__ __device__
+		int getGlobalIdx_2D_2D() {
+		int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+		int threadId = blockId * (blockDim.x * blockDim.y)
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+		return threadId;
+	}
+	__forceinline__ __device__
+		int getGlobalIdx_2D_3D() {
+		int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+		int threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
+			+ (threadIdx.z * (blockDim.x * blockDim.y))
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+		return threadId;
+	}
+	__forceinline__ __device__
+		int getGlobalIdx_3D_1D() {
+		int blockId = blockIdx.x + blockIdx.y * gridDim.x
+			+ gridDim.x * gridDim.y * blockIdx.z;
+		int threadId = blockId * blockDim.x + threadIdx.x;
+		return threadId;
+	}
+	__forceinline__ __device__
+		int getGlobalIdx_3D_2D() {
+		int blockId = blockIdx.x + blockIdx.y * gridDim.x
+			+ gridDim.x * gridDim.y * blockIdx.z;
+		int threadId = blockId * (blockDim.x * blockDim.y)
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+		return threadId;
+	}
+	__forceinline__ __device__
+		int getGlobalIdx_3D_3D() {
+		int blockId = blockIdx.x + blockIdx.y * gridDim.x
+			+ gridDim.x * gridDim.y * blockIdx.z;
+		int threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
+			+ (threadIdx.z * (blockDim.x * blockDim.y))
+			+ (threadIdx.y * blockDim.x) + threadIdx.x;
+		return threadId;
+	}
 }

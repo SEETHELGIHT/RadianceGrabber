@@ -49,7 +49,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -59,15 +59,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\RadianceGrabber\RandianceGrabberSheets.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\RadianceGrabber\RandianceGrabberSheets.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\RadianceGrabber\RandianceGrabberSheets.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\RadianceGrabber\RandianceGrabberSheets.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -77,18 +81,17 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../RadianceGrabber/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>RadianceGrabber.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../x64/Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world430.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../x64/Release;$(OpenCVDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
@@ -97,15 +100,19 @@
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <InterleaveSourceInPTX>true</InterleaveSourceInPTX>
       <GPUDebugInfo>true</GPUDebugInfo>
-      <GenerateLineInfo>true</GenerateLineInfo>
+      <GenerateLineInfo>false</GenerateLineInfo>
       <PtxAsOptionV>true</PtxAsOptionV>
       <FastMath>true</FastMath>
       <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <Keep>true</Keep>
       <HostDebugInfo>true</HostDebugInfo>
       <Include>../RadianceGrabber/;%(Include)</Include>
-      <Runtime>InheritFromHost</Runtime>
-      <RuntimeChecks>Default</RuntimeChecks>
+      <Runtime>MD</Runtime>
+      <RuntimeChecks>InheritFromHost</RuntimeChecks>
+      <Optimization>Od</Optimization>
+      <MaxRegCount>32</MaxRegCount>
+      <AdditionalOptions>--ptxas-options=-dlcm=cg %(AdditionalOptions)</AdditionalOptions>
+      <NvccCompilation>compile</NvccCompilation>
     </CudaCompile>
     <CudaLink>
       <GPUDebugInfo>true</GPUDebugInfo>
@@ -148,31 +155,53 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ConfigUtility.cpp" />
-    <ClCompile Include="FrameDataValidateTest.cpp" />
-    <ClCompile Include="LogFunctionTest.cpp" />
-    <ClCompile Include="MarshalTest.cpp" />
+    <ClCompile Include="MicrofacetFunctionTest.cpp" />
+    <ClCompile Include="PixelToPNGTest.cpp" />
+    <ClCompile Include="PNGToMJPGTest.cpp" />
+    <ClCompile Include="SingleRayTest.cpp" />
+    <CudaCompile Include="DynamicBVHBuildTest.cpp" />
+    <CudaCompile Include="DynamicBVHUpdateTest.cpp" />
+    <CudaCompile Include="FrameDataValidateTest.cpp" />
+    <CudaCompile Include="LogFunctionTest.cpp" />
+    <CudaCompile Include="MarshalTest.cpp" />
+    <CudaCompile Include="TransformBVHUpdateTest.cpp" />
     <CudaCompile Include="VectorFormula.cpp" />
     <CudaCompile Include="TransformBVHBuildTest.cpp" />
-    <CudaCompile Include="SphereTest.cpp" />
-    <ClCompile Include="MatrixTest.cpp" />
-    <ClCompile Include="NormalMappingTest.cpp" />
+    <CudaCompile Include="MatrixTest.cpp" />
+    <CudaCompile Include="NormalMappingTest.cpp" />
     <CudaCompile Include="SampleTest.cpp" />
-    <ClCompile Include="StaticMeshBuildTest.cpp" />
-    <ClCompile Include="ThreadManagementTest.cpp" />
+    <CudaCompile Include="StaticMeshBuildTest.cpp" />
+    <CudaCompile Include="ThreadManagementTest.cpp" />
     <CudaCompile Include="MeshTest.cpp" />
-    <ClCompile Include="RayFromCamera.cpp" />
+    <CudaCompile Include="RayFromCamera.cpp" />
     <CudaCompile Include="RayIntersectTest.cpp" />
     <CudaCompile Include="SaveFrameRequestTest.cpp" />
-    <ClCompile Include="SkyboxViewTest.cpp" />
+    <CudaCompile Include="SkyboxViewTest.cpp" />
     <CudaCompile Include="main.cu" />
-    <CudaCompile Include="PathIntegratorTest.cu" />
-    <CudaCompile Include="HostDeviceCopyTest.cpp" />
+    <CudaCompile Include="PathIntegratorTest.cpp" />
+    <CudaCompile Include="HostDeviceCopyTest.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="image.ini" />
+    <None Include="frame_path.ini" />
+    <None Include="project.ini" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ConfigUtility.h" />
+    <CudaCompile Include="ConfigUtility.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="IterativePathIntergratorTest.cpp">
+      <FileType>Document</FileType>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="AccelAggregateTest.cpp" />
+    <CudaCompile Include="IterativeStaticMeshBuildTest.cpp" />
+    <CudaCompile Include="IterativeTransformBVHTraversalTest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="HitTestKernelTest.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

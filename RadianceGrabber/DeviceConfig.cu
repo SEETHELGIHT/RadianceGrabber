@@ -59,8 +59,8 @@ namespace RadGrabber
 
 		int optimalBlockCount, optimalThreadCount;
 
-		optimalThreadCount = prop.maxThreadsPerBlock / 16;
-		optimalBlockCount = prop.maxThreadsPerMultiProcessor / optimalThreadCount;
+		optimalThreadCount = 256;
+		optimalBlockCount = 65536 / optimalThreadCount;
 
 		Log("%d,%d\n", optimalBlockCount, optimalThreadCount);
 

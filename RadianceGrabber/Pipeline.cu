@@ -9,40 +9,224 @@
 */
 namespace RadGrabber
 {
-	__global__ void SetDeviceMem(FrameInput* din, FrameInputInternal in)
+#pragma region DECLARE_SUBROUTINES
+
+	__host__ FrameImmutableInput AllocateDeviceImmutableData(FrameImmutableInput* hostIn, FrameImmutableInput* deviceIn);
+	__host__ FrameMutableInput AllocateDeviceMutableData(FrameMutableInput* hostIn, FrameMutableInput* deviceIn);
+	__host__ void FreeDeviceImmutableData(FrameImmutableInput* deviceInputInHost);
+	__host__ void FreeDeviceMutableData(FrameMutableInput* deviceInputInHost);
+	__host__ void FreeHostMutableData(FrameMutableInput* hostIn);
+	__host__ void FreeHostImmutableData(FrameImmutableInput* hostIn);
+
+	__host__ size_t StoreMeshChunk(MeshChunk* m, FILE* fp);
+	__host__ size_t StoreTexture2DChunk(Texture2DChunk* t, FILE* fp);
+	__host__ size_t StoreMeshRendererChunk(MeshRendererChunk* mr, FILE* fp);
+	__host__ size_t StoreSkinnedMeshRendererChunk(SkinnedMeshRendererChunk* smr, FILE* fp);
+	__host__ size_t StoreMutableData(FrameMutableInput* hostIn, FILE* fp);
+	__host__ size_t StoreImmutableData(FrameImmutableInput* hostIn, FILE* fp);
+
+	__host__ void LoadMeshChunk(MeshChunk* m, FILE* fp, void* (*allocator)(size_t cb));
+	__host__ void LoadTexture2DChunk(Texture2DChunk* t, FILE* fp, void* (*allocator)(size_t cb));
+	__host__ void LoadMeshRendererChunk(MeshRendererChunk* mr, FILE* fp, void* (*allocator)(size_t cb));
+	__host__ void LoadSkinnedMeshRendererChunk(SkinnedMeshRendererChunk* smr, FILE* fp, void* (*allocator)(size_t cb));
+	__host__ void LoadMutableData(FrameMutableInput* hostIn, FILE* fp, void* (*allocator)(size_t cb));
+	__host__ void LoadImmutableData(FrameImmutableInput* hostIn, FILE* fp, void* (*allocator)(size_t cb));
+
+#pragma endregion DECLARE_SUBROUTINES
+
+#pragma region IMPLEMENT_REQUEST_FUNCTIONS
+
+	__global__ void SetDeviceFrameInput(FrameInput* din, FrameInputInternal in)
 	{
 		if (threadIdx.x == 0)
 			din = new (din)FrameInput(in);
 	}
 
-	__host__ void AllocateDeviceMem(FrameRequest* hostReq, FrameInput** outDeviceInput)
+	__host__ void AllocateDeviceFrameRequest(FrameRequest* hostReq, FrameInput** outDeviceInput)
 	{
 		ASSERT(outDeviceInput);
 
 		FrameInput hin = hostReq->input;
 		FrameInputInternal dib = hostReq->input.in;
+
+		dib.mutableInput = AllocateDeviceMutableData(&hin.in.mutableInput, nullptr);
+		dib.immutableInput = AllocateDeviceImmutableData(&hin.in.immutableInput, nullptr);
+
 		gpuErrchk(cudaMalloc(outDeviceInput, sizeof(FrameInput)));
+		SetDeviceFrameInput << <1, 1 >> > (*outDeviceInput, dib);
+	}
+	__host__ void FreeHostFrameRequest(FrameRequest* hreq)
+	{
+		FreeHostMutableData(&hreq->input.in.mutableInput);
+		FreeHostImmutableData(&hreq->input.in.immutableInput);
 
-		gpuErrchk(cudaMalloc(&dib.meshBuffer, sizeof(MeshChunk) * hin.in.meshBufferLen));
-		gpuErrchk(cudaMalloc(&dib.meshRendererBuffer, sizeof(MeshRendererChunk) * hin.in.meshRendererBufferLen));
-		gpuErrchk(cudaMalloc(&dib.skinnedMeshBuffer, sizeof(MeshChunk) * hin.in.skinnedMeshBufferLen));
-		gpuErrchk(cudaMalloc(&dib.skinnedMeshRendererBuffer, sizeof(SkinnedMeshRendererChunk) * hin.in.skinnedMeshRendererBufferLen));
-		gpuErrchk(cudaMalloc(&dib.textureBuffer, sizeof(Texture2DChunk) * hin.in.textureBufferLen));
+		SAFE_HOST_FREE(hreq);
+	}
+	__host__ void FreeDeviceFrameRequest(FrameInput* deviceInput)
+	{
+		FrameInput in;
+		gpuErrchk(cudaMemcpy(&in, deviceInput, sizeof(FrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-		gpuErrchk(cudaMalloc(&dib.cameraBuffer, sizeof(CameraChunk) * hin.in.cameraBufferLen));
-		gpuErrchk(cudaMemcpy(dib.cameraBuffer, hin.in.cameraBuffer, sizeof(CameraChunk) * hin.in.cameraBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMalloc(&dib.lightBuffer, sizeof(LightChunk) * hin.in.lightBufferLen));
-		gpuErrchk(cudaMemcpy(dib.lightBuffer, hin.in.lightBuffer, sizeof(LightChunk) * hin.in.lightBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMalloc(&dib.materialBuffer, sizeof(MaterialChunk) * hin.in.materialBufferLen));
-		gpuErrchk(cudaMemcpy(dib.materialBuffer, hin.in.materialBuffer, sizeof(MaterialChunk) * hin.in.materialBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMalloc(&dib.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hin.in.skyboxMaterialBufferLen));
-		gpuErrchk(cudaMemcpy(dib.skyboxMaterialBuffer, hin.in.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hin.in.skyboxMaterialBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
+		FreeDeviceMutableData(&in.in.mutableInput);
+		FreeDeviceImmutableData(&in.in.immutableInput);
 
-		SetDeviceMem<<<1, 1>>>(*outDeviceInput, dib);
+		gpuErrchk(cudaFree(deviceInput));
+	}
 
-		for (int i = 0; i < hin.in.meshBufferLen; i++)
+	__host__ size_t StoreFrameRequest(FrameRequest* hostReq, FILE* fp)
+	{
+		size_t size = 0;
 		{
-			MeshChunk c = hin.in.meshBuffer[i], c2 = c;
+			Log("%x, %x", hostReq->opt.updateFunc, hostReq->opt.updateFrameFunc);
+			size += fwrite(&hostReq->opt, sizeof(RequestOption), 1, fp);
+		}
+
+		{
+			FrameInputInternal& in = hostReq->input.in;
+
+			size += StoreImmutableData(&in.immutableInput, fp);
+			size += StoreMutableData(&in.mutableInput, fp);
+		}
+
+		{
+			size += fwrite(&hostReq->output, sizeof(FrameOutput), 1, fp);
+		}
+
+		fflush(fp);
+		FlushLog();
+
+		return size;
+	}
+	__host__ void LoadFrameRequest(FILE* fp, FrameRequest** reqBuffer, void* (*allocator)(size_t cb))
+	{
+		{
+			fread(&(*reqBuffer)->opt, sizeof(RequestOption), 1, fp);
+		}
+
+		{
+			FrameInput& in = (*reqBuffer)->input;
+
+			LoadImmutableData(&in.in.immutableInput, fp, allocator);
+			LoadMutableData(&in.in.mutableInput, fp, allocator);
+		}
+
+		{
+			fread(&(*reqBuffer)->output, sizeof(FrameOutput), 1, fp);
+		}
+	}
+
+	__global__ void SetDeviceMultiFrameInput(MultiFrameInput* din, MultiFrameInputInternal in, int startIndex, int endCount)
+	{
+		if (threadIdx.x == 0)
+		{
+			din = new (din)MultiFrameInput(in);
+			din->startIndex = startIndex;
+			din->endCount = endCount;
+		}			
+	}
+
+	__host__ void AllocateDeviceMultiFrameRequest(MultiFrameRequest* hostReq, MultiFrameInput** outDeviceInput)
+	{
+		ASSERT(outDeviceInput);
+
+		MultiFrameInput hin = hostReq->input;
+		MultiFrameInputInternal dib = hostReq->input.in;
+
+		dib.immutable = AllocateDeviceImmutableData(&hin.in.immutable, nullptr);
+		dib.mutableInputs = (FrameMutableInput*)MAllocDevice(sizeof(FrameMutableInput) * dib.mutableInputLen);
+		for (int i = 0; i < dib.mutableInputLen; i++)
+		{
+			FrameMutableInput min = AllocateDeviceMutableData(hin.in.mutableInputs + i, nullptr);;
+			gpuErrchk(cudaMemcpy(dib.mutableInputs + i, &min, sizeof(FrameMutableInput), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		}
+
+		gpuErrchk(cudaMalloc(outDeviceInput, sizeof(FrameInput)));
+		SetDeviceMultiFrameInput << <1, 1 >> > (*outDeviceInput, dib, hin.startIndex, hin.endCount);
+	}
+	__host__ void FreeDeviceMultiFrameRequest(MultiFrameInput* deviceInput)
+	{
+		MultiFrameInput in;
+		gpuErrchk(cudaMemcpy(&in, deviceInput, sizeof(MultiFrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+		FreeDeviceImmutableData(&in.in.immutable);
+		for (int i = 0; i < in.in.mutableInputLen; i++)
+		{
+			FrameMutableInput cin;
+			gpuErrchk(cudaMemcpy(&cin, in.in.mutableInputs + i, sizeof(FrameMutableInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			FreeDeviceMutableData(&cin);
+		}
+			
+		SAFE_DEVICE_DELETE(in.in.mutableInputs);
+		SAFE_DEVICE_DELETE(deviceInput);
+	}
+	__host__ void FreeHostMultiFrameRequest(MultiFrameRequest* hreq)
+	{
+		FreeHostImmutableData(&hreq->input.in.immutable);
+		for (int i = 0; i < hreq->input.in.mutableInputLen; i++)
+			FreeHostMutableData(&hreq->input.in.mutableInputs[i]);
+		SAFE_HOST_FREE(hreq->input.in.mutableInputs);
+
+		SAFE_HOST_FREE(hreq);
+	}
+	__host__ size_t StoreMultiFrameRequest(MultiFrameRequest* hostReq, FILE* fp)
+	{
+		size_t size = 0;
+		{
+			size += fwrite(&hostReq->opt, sizeof(RequestOption), 1, fp);
+		}
+
+		{
+			MultiFrameInputInternal& in = hostReq->input.in;
+
+			size += StoreImmutableData(&in.immutable, fp);
+			size += fwrite(&in.mutableInputLen, sizeof(int), 1, fp);
+			for (int i = 0; i < in.mutableInputLen; i++)
+				size += StoreMutableData(in.mutableInputs + i, fp);
+		}
+
+		{
+			size += fwrite(&hostReq->output, sizeof(FrameOutput), 1, fp);
+		}
+
+		fflush(fp);
+		FlushLog();
+
+		return size;
+	}
+	__host__ void LoadMultiFrameRequest(FILE* fp, MultiFrameRequest** reqBuffer, void* (*allocator)(size_t cb))
+	{
+		{
+			fread(&(*reqBuffer)->opt, sizeof(RequestOption), 1, fp);
+		}
+
+		{
+			MultiFrameInput& in = (*reqBuffer)->input;
+
+			LoadImmutableData(&in.in.immutable, fp, allocator);
+			fread(&in.in.mutableInputLen, sizeof(int), 1, fp);
+			in.in.mutableInputs = (FrameMutableInput*)allocator(sizeof(FrameMutableInput) * in.in.mutableInputLen);
+			for (int i = 0; i < in.in.mutableInputLen; i++)
+				LoadMutableData(in.in.mutableInputs + i, fp, allocator);
+		}
+
+		{
+			fread(&(*reqBuffer)->output, sizeof(MultiFrameOutput), 1, fp);
+		}
+	}
+
+#pragma endregion IMPLEMENT_REQUEST_FUNCTIONS
+
+#pragma region IMPLEMENT_SUBROUTINES
+
+	__host__ FrameImmutableInput AllocateDeviceImmutableData(FrameImmutableInput* hostIn, FrameImmutableInput* deviceIn)
+	{
+		FrameImmutableInput hin = *hostIn;
+		FrameImmutableInput din = *hostIn;
+
+		gpuErrchk(cudaMalloc(&din.meshBuffer, sizeof(MeshChunk) * hin.meshBufferLen));
+		for (int i = 0; i < hin.meshBufferLen; i++)
+		{
+			MeshChunk c = hin.meshBuffer[i], c2 = c;
 
 			gpuErrchk(cudaMalloc(&c.positions, sizeof(Vector3f) * c.vertexCount));
 			gpuErrchk(cudaMemcpy(c.positions, c2.positions, sizeof(Vector3f) * c.vertexCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -70,12 +254,13 @@ namespace RadGrabber
 			else
 				c.bindposeArrayPtr = nullptr;
 
-			gpuErrchk(cudaMemcpy(dib.meshBuffer + i, &c, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(din.meshBuffer + i, &c, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		}
 
-		for (int i = 0; i < hin.in.skinnedMeshBufferLen; i++)
+		gpuErrchk(cudaMalloc(&din.skinnedMeshBuffer, sizeof(MeshChunk) * hin.skinnedMeshBufferLen));
+		for (int i = 0; i < hin.skinnedMeshBufferLen; i++)
 		{
-			MeshChunk c = hin.in.skinnedMeshBuffer[i], c2 = c;
+			MeshChunk c = hin.skinnedMeshBuffer[i], c2 = c;
 
 			gpuErrchk(cudaMalloc(&c.positions, sizeof(Vector3f) * c.vertexCount));
 			gpuErrchk(cudaMemcpy(c.positions, c2.positions, sizeof(Vector3f) * c.vertexCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -96,37 +281,15 @@ namespace RadGrabber
 			else
 				c.bindposeArrayPtr = nullptr;
 
-			gpuErrchk(cudaMemcpy(dib.skinnedMeshBuffer + i, &c, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(din.skinnedMeshBuffer + i, &c, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		}
 
-		for (int i = 0; i < hin.in.meshRendererBufferLen; i++)
+		gpuErrchk(cudaMalloc(&din.textureBuffer, sizeof(Texture2DChunk) * hin.textureBufferLen));
+		for (int i = 0; i < hin.textureBufferLen; i++)
 		{
-			MeshRendererChunk c = hin.in.meshRendererBuffer[i], c2 = c;
+			Texture2DChunk c = hin.textureBuffer[i], c2 = c;
 
-			gpuErrchk(cudaMalloc(&c.materialArrayPtr, sizeof(int) * c.materialCount));
-			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(int) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
-
-			gpuErrchk(cudaMemcpy(dib.meshRendererBuffer + i, &c, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
-		}
-
-		for (int i = 0; i < hin.in.skinnedMeshRendererBufferLen; i++)
-		{
-			SkinnedMeshRendererChunk c = hin.in.skinnedMeshRendererBuffer[i], c2 = c;
-
-			gpuErrchk(cudaMalloc(&c.materialArrayPtr, sizeof(int) * c.materialCount));
-			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(int) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
-
-			gpuErrchk(cudaMalloc(&c.boneArrayPtr, sizeof(Bone) * c.materialCount));
-			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(Bone) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
-
-			gpuErrchk(cudaMemcpy(dib.skinnedMeshRendererBuffer + i, &c, sizeof(SkinnedMeshRendererChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
-		}
-
-		for (int i = 0; i < hin.in.textureBufferLen; i++)
-		{
-			Texture2DChunk c = hin.in.textureBuffer[i], c2 = c;
-
-			cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKind::cudaChannelFormatKindUnsigned );
+			cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKind::cudaChannelFormatKindUnsigned);
 			cudaArray* pixelArray = nullptr;
 			gpuErrchk(cudaMallocArray(&pixelArray, &channelDesc, c.size.x, c.size.y));
 			gpuErrchk(cudaMemcpyToArray(pixelArray, 0, 0, c2.pixelPtr, sizeof(ColorRGBA32) * c.size.x * c.size.y, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -151,21 +314,65 @@ namespace RadGrabber
 			ASSERT(sizeof(cudaTextureObject_t) == sizeof(void*));
 			cudaCreateTextureObject((cudaTextureObject_t*)&c.pixelPtr, &resDesc, &texDesc, nullptr);
 
-			gpuErrchk(cudaMemcpy(dib.textureBuffer + i, &c, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(din.textureBuffer + i, &c, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		}
+
+		if (deviceIn != nullptr)
+			gpuErrchk(cudaMemcpy(deviceIn, &din, sizeof(FrameImmutableInput), cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+		return din;
+	}
+	__host__ FrameMutableInput AllocateDeviceMutableData(FrameMutableInput* hostIn, FrameMutableInput* deviceIn)
+	{
+		FrameMutableInput hin = *hostIn;
+		FrameMutableInput din = *hostIn;
+
+		gpuErrchk(cudaMalloc(&din.cameraBuffer, sizeof(CameraChunk) * hin.cameraBufferLen));
+		gpuErrchk(cudaMemcpy(din.cameraBuffer, hin.cameraBuffer, sizeof(CameraChunk) * hin.cameraBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMalloc(&din.lightBuffer, sizeof(LightChunk) * hin.lightBufferLen));
+		gpuErrchk(cudaMemcpy(din.lightBuffer, hin.lightBuffer, sizeof(LightChunk) * hin.lightBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMalloc(&din.materialBuffer, sizeof(MaterialChunk) * hin.materialBufferLen));
+		gpuErrchk(cudaMemcpy(din.materialBuffer, hin.materialBuffer, sizeof(MaterialChunk) * hin.materialBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMalloc(&din.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hin.skyboxMaterialBufferLen));
+		gpuErrchk(cudaMemcpy(din.skyboxMaterialBuffer, hin.skyboxMaterialBuffer, sizeof(SkyboxChunk) * hin.skyboxMaterialBufferLen, cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+		gpuErrchk(cudaMalloc(&din.meshRendererBuffer, sizeof(MeshRendererChunk) * hin.meshRendererBufferLen));
+		for (int i = 0; i < hin.meshRendererBufferLen; i++)
+		{
+			MeshRendererChunk c = hin.meshRendererBuffer[i], c2 = c;
+
+			gpuErrchk(cudaMalloc(&c.materialArrayPtr, sizeof(int) * c.materialCount));
+			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(int) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+			gpuErrchk(cudaMemcpy(din.meshRendererBuffer + i, &c, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		}
+
+		gpuErrchk(cudaMalloc(&din.skinnedMeshRendererBuffer, sizeof(SkinnedMeshRendererChunk) * hin.skinnedMeshRendererBufferLen));
+		for (int i = 0; i < hin.skinnedMeshRendererBufferLen; i++)
+		{
+			SkinnedMeshRendererChunk c = hin.skinnedMeshRendererBuffer[i], c2 = c;
+
+			gpuErrchk(cudaMalloc(&c.materialArrayPtr, sizeof(int) * c.materialCount));
+			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(int) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+			gpuErrchk(cudaMalloc(&c.boneArrayPtr, sizeof(Bone) * c.materialCount));
+			gpuErrchk(cudaMemcpy(c.materialArrayPtr, c2.materialArrayPtr, sizeof(Bone) * c.materialCount, cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+			gpuErrchk(cudaMemcpy(din.skinnedMeshRendererBuffer + i, &c, sizeof(SkinnedMeshRendererChunk), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		}
+
+		if (deviceIn != nullptr)
+			gpuErrchk(cudaMemcpy(deviceIn, &din, sizeof(FrameMutableInput), cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+		return din;
 	}
 
-#pragma warning( push )
-#pragma warning( disable : 4101 )
-	__host__ void FreeDeviceMem(FrameInput* deviceInput)
+	__host__ void FreeDeviceImmutableData(FrameImmutableInput* deviceInputInHost)
 	{
-		FrameInput in;
-		gpuErrchk(cudaMemcpy(&in, deviceInput, sizeof(FrameInput), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-		for (int i = 0; i < in.in.meshBufferLen; i++)
+		for (int i = 0; i < deviceInputInHost->meshBufferLen; i++)
 		{
 			MeshChunk c;
-			gpuErrchk(cudaMemcpy(&c, in.in.meshBuffer + i, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			gpuErrchk(cudaMemcpy(&c, deviceInputInHost->meshBuffer + i, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 			gpuErrchk(cudaFree(c.positions));
 			gpuErrchk(cudaFree(c.normals));
@@ -175,10 +382,10 @@ namespace RadGrabber
 			gpuErrchk(cudaFree(c.submeshArrayPtr));
 		}
 
-		for (int i = 0; i < in.in.skinnedMeshBufferLen; i++)
+		for (int i = 0; i < deviceInputInHost->skinnedMeshBufferLen; i++)
 		{
 			MeshChunk c;
-			gpuErrchk(cudaMemcpy(&c, in.in.skinnedMeshBuffer + i, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			gpuErrchk(cudaMemcpy(&c, deviceInputInHost->skinnedMeshBuffer + i, sizeof(MeshChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 			gpuErrchk(cudaFree(c.positions));
 			gpuErrchk(cudaFree(c.normals));
@@ -188,27 +395,10 @@ namespace RadGrabber
 			gpuErrchk(cudaFree(c.submeshArrayPtr));
 		}
 
-		for (int i = 0; i < in.in.meshRendererBufferLen; i++)
-		{
-			MeshRendererChunk c;
-			gpuErrchk(cudaMemcpy(&c, in.in.meshRendererBuffer + i, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-			gpuErrchk(cudaFree(c.materialArrayPtr));
-		}
-
-		for (int i = 0; i < in.in.skinnedMeshRendererBufferLen; i++)
-		{
-			SkinnedMeshRendererChunk c;
-			gpuErrchk(cudaMemcpy(&c, in.in.skinnedMeshRendererBuffer + i, sizeof(SkinnedMeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-			gpuErrchk(cudaFree(c.materialArrayPtr));
-			gpuErrchk(cudaFree(c.boneArrayPtr));
-		}
-
-		for (int i = 0; i < in.in.textureBufferLen; i++)
+		for (int i = 0; i < deviceInputInHost->textureBufferLen; i++)
 		{
 			Texture2DChunk c;
-			gpuErrchk(cudaMemcpy(&c, in.in.textureBuffer + i, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+			gpuErrchk(cudaMemcpy(&c, deviceInputInHost->textureBuffer + i, sizeof(Texture2DChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 			struct cudaResourceDesc resDesc;
 			gpuErrchk(cudaGetTextureObjectResourceDesc(&resDesc, reinterpret_cast<cudaTextureObject_t>(c.pixelPtr)));
@@ -217,75 +407,99 @@ namespace RadGrabber
 			gpuErrchk(cudaDestroyTextureObject(reinterpret_cast<cudaTextureObject_t>(c.pixelPtr)));
 		}
 
-		gpuErrchk(cudaFree(in.in.cameraBuffer));
-		gpuErrchk(cudaFree(in.in.lightBuffer));
-		gpuErrchk(cudaFree(in.in.materialBuffer));
-		gpuErrchk(cudaFree(in.in.meshBuffer));
-		gpuErrchk(cudaFree(in.in.meshRendererBuffer));
-		gpuErrchk(cudaFree(in.in.skinnedMeshBuffer));
-		gpuErrchk(cudaFree(in.in.skinnedMeshRendererBuffer));
-		gpuErrchk(cudaFree(in.in.skyboxMaterialBuffer));
-		gpuErrchk(cudaFree(in.in.textureBuffer));
-
-		gpuErrchk(cudaFree(deviceInput));
+		gpuErrchk(cudaFree(deviceInputInHost->meshBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->skinnedMeshBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->textureBuffer));
 	}
 
-	__host__ void FreeHostMem(FrameRequest* hreq)
+	__host__ void FreeDeviceMutableData(FrameMutableInput* deviceInputInHost)
 	{
-		for (int i = 0; i < hreq->input.in.meshBufferLen; i++)
+		for (int i = 0; i < deviceInputInHost->skinnedMeshRendererBufferLen; i++)
 		{
-			MeshChunk c = hreq->input.in.meshBuffer[i];
+			SkinnedMeshRendererChunk c;
+			gpuErrchk(cudaMemcpy(&c, deviceInputInHost->skinnedMeshRendererBuffer + i, sizeof(SkinnedMeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-			SAFE_HOST_FREE(c.positions);
-			SAFE_HOST_FREE(c.normals);
-			SAFE_HOST_FREE(c.uvs);
-			SAFE_HOST_FREE(c.indices);
-			SAFE_HOST_FREE(c.bindposeArrayPtr);
-			SAFE_HOST_FREE(c.submeshArrayPtr);
+			gpuErrchk(cudaFree(c.materialArrayPtr));
+			gpuErrchk(cudaFree(c.boneArrayPtr));
 		}
 
-		for (int i = 0; i < hreq->input.in.skinnedMeshBufferLen; i++)
+		for (int i = 0; i < deviceInputInHost->meshRendererBufferLen; i++)
 		{
-			MeshChunk c = hreq->input.in.skinnedMeshBuffer[i];
+			MeshRendererChunk c;
+			gpuErrchk(cudaMemcpy(&c, deviceInputInHost->meshRendererBuffer + i, sizeof(MeshRendererChunk), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-			SAFE_HOST_FREE(c.positions);
-			SAFE_HOST_FREE(c.normals);
-			SAFE_HOST_FREE(c.uvs);
-			SAFE_HOST_FREE(c.indices);
-			SAFE_HOST_FREE(c.bindposeArrayPtr);
-			SAFE_HOST_FREE(c.submeshArrayPtr);
+			gpuErrchk(cudaFree(c.materialArrayPtr));
 		}
 
-		for (int i = 0; i < hreq->input.in.meshRendererBufferLen; i++)
+		gpuErrchk(cudaFree(deviceInputInHost->cameraBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->lightBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->materialBuffer));
+		
+		gpuErrchk(cudaFree(deviceInputInHost->meshRendererBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->skinnedMeshRendererBuffer));
+		gpuErrchk(cudaFree(deviceInputInHost->skyboxMaterialBuffer));
+	}
+
+#pragma warning( push )
+#pragma warning( disable : 4101 )
+
+	__host__ void FreeHostMutableData(FrameMutableInput* hostIn)
+	{
+		for (int i = 0; i < hostIn->meshRendererBufferLen; i++)
 		{
-			MeshRendererChunk c = hreq->input.in.meshRendererBuffer[i];
+			MeshRendererChunk c = hostIn->meshRendererBuffer[i];
 			SAFE_HOST_FREE(c.materialArrayPtr);
 		}
 
-		for (int i = 0; i < hreq->input.in.skinnedMeshRendererBufferLen; i++)
+		for (int i = 0; i < hostIn->skinnedMeshRendererBufferLen; i++)
 		{
-			SkinnedMeshRendererChunk c = hreq->input.in.skinnedMeshRendererBuffer[i];
+			SkinnedMeshRendererChunk c = hostIn->skinnedMeshRendererBuffer[i];
 			SAFE_HOST_FREE(c.materialArrayPtr);
 			SAFE_HOST_FREE(c.boneArrayPtr);
 		}
 
-		for (int i = 0; i < hreq->input.in.textureBufferLen; i++)
+		SAFE_HOST_FREE(hostIn->cameraBuffer);
+		SAFE_HOST_FREE(hostIn->lightBuffer);
+		SAFE_HOST_FREE(hostIn->materialBuffer);
+		SAFE_HOST_FREE(hostIn->meshRendererBuffer);
+		SAFE_HOST_FREE(hostIn->skinnedMeshRendererBuffer);
+		SAFE_HOST_FREE(hostIn->skyboxMaterialBuffer);
+	}
+	__host__ void FreeHostImmutableData(FrameImmutableInput* hostIn)
+	{
+		for (int i = 0; i < hostIn->meshBufferLen; i++)
 		{
-			Texture2DChunk c = hreq->input.in.textureBuffer[i];
+			MeshChunk c = hostIn->meshBuffer[i];
+
+			SAFE_HOST_FREE(c.positions);
+			SAFE_HOST_FREE(c.normals);
+			SAFE_HOST_FREE(c.uvs);
+			SAFE_HOST_FREE(c.indices);
+			SAFE_HOST_FREE(c.bindposeArrayPtr);
+			SAFE_HOST_FREE(c.submeshArrayPtr);
+		}
+
+		for (int i = 0; i < hostIn->skinnedMeshBufferLen; i++)
+		{
+			MeshChunk c = hostIn->skinnedMeshBuffer[i];
+
+			SAFE_HOST_FREE(c.positions);
+			SAFE_HOST_FREE(c.normals);
+			SAFE_HOST_FREE(c.uvs);
+			SAFE_HOST_FREE(c.indices);
+			SAFE_HOST_FREE(c.bindposeArrayPtr);
+			SAFE_HOST_FREE(c.submeshArrayPtr);
+		}
+
+		for (int i = 0; i < hostIn->textureBufferLen; i++)
+		{
+			Texture2DChunk c = hostIn->textureBuffer[i];
 			SAFE_HOST_FREE(c.pixelPtr);
 		}
 
-		SAFE_HOST_FREE(hreq->input.in.cameraBuffer);
-		SAFE_HOST_FREE(hreq->input.in.lightBuffer);
-		SAFE_HOST_FREE(hreq->input.in.materialBuffer);
-		SAFE_HOST_FREE(hreq->input.in.meshBuffer);
-		SAFE_HOST_FREE(hreq->input.in.meshRendererBuffer);
-		SAFE_HOST_FREE(hreq->input.in.skinnedMeshBuffer);
-		SAFE_HOST_FREE(hreq->input.in.skinnedMeshRendererBuffer);
-		SAFE_HOST_FREE(hreq->input.in.skyboxMaterialBuffer);
-		SAFE_HOST_FREE(hreq->input.in.textureBuffer);
-
-		SAFE_HOST_FREE(hreq);
+		SAFE_HOST_FREE(hostIn->meshBuffer);
+		SAFE_HOST_FREE(hostIn->skinnedMeshBuffer);
+		SAFE_HOST_FREE(hostIn->textureBuffer);
 	}
 
 #pragma warning( pop )
@@ -365,58 +579,48 @@ namespace RadGrabber
 
 		return size;
 	}
-
-	__host__ size_t StoreFrameRequest(FrameRequest* hostReq, FILE* fp)
+	__host__ size_t StoreMutableData(FrameMutableInput* hostIn, FILE* fp)
 	{
 		size_t size = 0;
-		{
-			size += fwrite(&hostReq->opt, sizeof(RequestOption), 1, fp);
-		}
+		size += fwrite(&hostIn->meshRendererBufferLen, sizeof(int), 1, fp);
+		for (int i = 0; i < hostIn->meshRendererBufferLen; i++)
+			size += StoreMeshRendererChunk(hostIn->meshRendererBuffer + i, fp);
 
-		{
-			FrameInputInternal& in = hostReq->input.in;
+		size += fwrite(&hostIn->skinnedMeshRendererBufferLen, sizeof(int), 1, fp);
+		for (int i = 0; i < hostIn->skinnedMeshRendererBufferLen; i++)
+			size += StoreSkinnedMeshRendererChunk(hostIn->skinnedMeshRendererBuffer + i, fp);
 
-			size += fwrite(&in.meshBufferLen, sizeof(int), 1, fp);
-			for (int i = 0; i < in.meshBufferLen; i++)
-				size += StoreMeshChunk(in.meshBuffer + i, fp);
+		size += fwrite(&hostIn->lightBufferLen, sizeof(int), 1, fp);
+		size += fwrite(hostIn->lightBuffer, sizeof(LightChunk), hostIn->lightBufferLen, fp);
 
-			size += fwrite(&in.skinnedMeshBufferLen, sizeof(int), 1, fp);
-			for (int i = 0; i < in.skinnedMeshBufferLen; i++)
-				size += StoreMeshChunk(in.skinnedMeshBuffer + i, fp);
+		size += fwrite(&hostIn->cameraBufferLen, sizeof(int), 1, fp);
+		size += fwrite(hostIn->cameraBuffer, sizeof(CameraChunk), hostIn->cameraBufferLen, fp);
 
-			size += fwrite(&in.textureBufferLen, sizeof(int), 1, fp);
-			for (int i = 0; i < in.textureBufferLen; i++)
-				size += StoreTexture2DChunk(in.textureBuffer + i, fp);
+		size += fwrite(&hostIn->skyboxMaterialBufferLen, sizeof(int), 1, fp);
+		size += fwrite(hostIn->skyboxMaterialBuffer, sizeof(SkyboxChunk), hostIn->skyboxMaterialBufferLen, fp);
 
-			size += fwrite(&in.meshRendererBufferLen, sizeof(int), 1, fp);
-			for (int i = 0; i < in.meshRendererBufferLen; i++)
-				size += StoreMeshRendererChunk(in.meshRendererBuffer + i, fp);
+		size += fwrite(&hostIn->materialBufferLen, sizeof(int), 1, fp);
+		size += fwrite(hostIn->materialBuffer, sizeof(MaterialChunk), hostIn->materialBufferLen, fp);
 
-			size += fwrite(&in.skinnedMeshRendererBufferLen, sizeof(int), 1, fp);
-			for (int i = 0; i < in.skinnedMeshRendererBufferLen; i++)
-				size += StoreSkinnedMeshRendererChunk(in.skinnedMeshRendererBuffer + i, fp);
+		size += fwrite(&hostIn->selectedCameraIndex, sizeof(int), 1, fp);
 
-			size += fwrite(&in.lightBufferLen, sizeof(int), 1, fp);
-			size += fwrite(in.lightBuffer, sizeof(LightChunk), in.lightBufferLen, fp);
+		return size;
+	}
+	__host__ size_t StoreImmutableData(FrameImmutableInput* hostIn, FILE* fp)
+	{
+		size_t size = 0;
 
-			size += fwrite(&in.cameraBufferLen, sizeof(int), 1, fp);
-			size += fwrite(in.cameraBuffer, sizeof(CameraChunk), in.cameraBufferLen, fp);
+		size += fwrite(&hostIn->meshBufferLen, sizeof(int), 1, fp);
+		for (int i = 0; i < hostIn->meshBufferLen; i++)
+			size += StoreMeshChunk(hostIn->meshBuffer + i, fp);
 
-			size += fwrite(&in.skyboxMaterialBufferLen, sizeof(int), 1, fp);
-			size += fwrite(in.skyboxMaterialBuffer, sizeof(SkyboxChunk), in.skyboxMaterialBufferLen, fp);
-			
-			size += fwrite(&in.materialBufferLen, sizeof(int), 1, fp);
-			size += fwrite(in.materialBuffer, sizeof(MaterialChunk), in.materialBufferLen, fp);
+		size += fwrite(&hostIn->skinnedMeshBufferLen, sizeof(int), 1, fp);
+		for (int i = 0; i < hostIn->skinnedMeshBufferLen; i++)
+			size += StoreMeshChunk(hostIn->skinnedMeshBuffer + i, fp);
 
-			size += fwrite(&in.selectedCameraIndex, sizeof(int), 1, fp);
-		}
-
-		{
-			size += fwrite(&hostReq->output, sizeof(FrameOutput), 1, fp);
-		}
-
-		fflush(fp);
-		FlushLog();
+		size += fwrite(&hostIn->textureBufferLen, sizeof(int), 1, fp);
+		for (int i = 0; i < hostIn->textureBufferLen; i++)
+			size += StoreTexture2DChunk(hostIn->textureBuffer + i, fp);
 
 		return size;
 	}
@@ -447,6 +651,8 @@ namespace RadGrabber
 		fread(m->indices, sizeof(int), m->indexCount, fp);
 		m->submeshArrayPtr = (UnitySubMeshDescriptor*)allocator(sizeof(UnitySubMeshDescriptor) * m->submeshCount);
 		fread(m->submeshArrayPtr, sizeof(UnitySubMeshDescriptor), m->submeshCount, fp);
+		for (int i = 0; i < m->submeshCount; i++)
+			Log("%d::%d~%d", i, m->submeshArrayPtr[i].indexStart, m->submeshArrayPtr[i].indexCount);
 		m->bindposeArrayPtr = (Matrix4x4*)allocator(sizeof(Matrix4x4) * m->bindposeCount);
 		fread(m->bindposeArrayPtr, sizeof(Matrix4x4), m->bindposeCount, fp);
 
@@ -490,62 +696,53 @@ namespace RadGrabber
 		smr->boneArrayPtr = (int*)allocator(sizeof(int) * smr->boneCount);
 		fread(smr->boneArrayPtr, sizeof(int), smr->boneCount, fp);
 	}
-
-	__host__ void LoadFrameRequest(FILE* fp, FrameRequest** reqBuffer, void* (*allocator)(size_t cb))
+	__host__ void LoadMutableData(FrameMutableInput* hostIn, FILE* fp, void* (*allocator)(size_t cb))
 	{
-		{
-			fread(&(*reqBuffer)->opt, sizeof(RequestOption), 1, fp);
-		}
-		
-		{
-			FrameInput& in = (*reqBuffer)->input;
+		fread(&hostIn->meshRendererBufferLen, sizeof(int), 1, fp);
+		hostIn->meshRendererBuffer = (MeshRendererChunk*)allocator(sizeof(MeshRendererChunk) * hostIn->meshRendererBufferLen);
+		for (int i = 0; i < hostIn->meshRendererBufferLen; i++)
+			LoadMeshRendererChunk(hostIn->meshRendererBuffer + i, fp, allocator);
 
-			fread(&in.in.meshBufferLen, sizeof(int), 1, fp);
-			in.in.meshBuffer = (MeshChunk*)allocator(sizeof(MeshChunk) * in.in.meshBufferLen);
-			for (int i = 0; i < in.in.meshBufferLen; i++)
-				LoadMeshChunk(in.in.meshBuffer + i, fp, allocator);
+		fread(&hostIn->skinnedMeshRendererBufferLen, sizeof(int), 1, fp);
+		hostIn->skinnedMeshRendererBuffer = (SkinnedMeshRendererChunk*)allocator(sizeof(SkinnedMeshRendererChunk) * hostIn->skinnedMeshRendererBufferLen);
+		for (int i = 0; i < hostIn->skinnedMeshRendererBufferLen; i++)
+			LoadSkinnedMeshRendererChunk(hostIn->skinnedMeshRendererBuffer + i, fp, allocator);
 
-			fread(&in.in.skinnedMeshBufferLen, sizeof(int), 1, fp);
-			in.in.skinnedMeshBuffer = (MeshChunk*)allocator(sizeof(MeshChunk) * in.in.skinnedMeshBufferLen);
-			for (int i = 0; i < in.in.skinnedMeshBufferLen; i++)
-				LoadMeshChunk(in.in.skinnedMeshBuffer + i, fp, allocator);
+		fread(&hostIn->lightBufferLen, sizeof(int), 1, fp);
+		hostIn->lightBuffer = (LightChunk*)allocator(sizeof(LightChunk) * hostIn->lightBufferLen);
+		fread(hostIn->lightBuffer, sizeof(LightChunk), hostIn->lightBufferLen, fp);
 
-			fread(&in.in.textureBufferLen, sizeof(int), 1, fp);
-			in.in.textureBuffer = (Texture2DChunk*)allocator(sizeof(Texture2DChunk) * in.in.textureBufferLen);
-			for (int i = 0; i < in.in.textureBufferLen; i++)
-				LoadTexture2DChunk(in.in.textureBuffer + i, fp, allocator);
+		fread(&hostIn->cameraBufferLen, sizeof(int), 1, fp);
+		hostIn->cameraBuffer = (CameraChunk*)allocator(sizeof(CameraChunk) * hostIn->cameraBufferLen);
+		fread(hostIn->cameraBuffer, sizeof(CameraChunk), hostIn->cameraBufferLen, fp);
 
-			fread(&in.in.meshRendererBufferLen, sizeof(int), 1, fp);
-			in.in.meshRendererBuffer = (MeshRendererChunk*)allocator(sizeof(MeshRendererChunk) * in.in.meshRendererBufferLen);
-			for (int i = 0; i < in.in.meshRendererBufferLen; i++)
-				LoadMeshRendererChunk(in.in.meshRendererBuffer + i, fp, allocator);
+		fread(&hostIn->skyboxMaterialBufferLen, sizeof(int), 1, fp);
+		hostIn->skyboxMaterialBuffer = (SkyboxChunk*)allocator(sizeof(SkyboxChunk) * hostIn->skyboxMaterialBufferLen);
+		fread(hostIn->skyboxMaterialBuffer, sizeof(SkyboxChunk), hostIn->skyboxMaterialBufferLen, fp);
 
-			fread(&in.in.skinnedMeshRendererBufferLen, sizeof(int), 1, fp);
-			in.in.skinnedMeshRendererBuffer = (SkinnedMeshRendererChunk*)allocator(sizeof(SkinnedMeshRendererChunk) * in.in.skinnedMeshRendererBufferLen);
-			for (int i = 0; i < in.in.skinnedMeshRendererBufferLen; i++)
-				LoadSkinnedMeshRendererChunk(in.in.skinnedMeshRendererBuffer + i, fp, allocator);
+		fread(&hostIn->materialBufferLen, sizeof(int), 1, fp);
+		hostIn->materialBuffer = (MaterialChunk*)allocator(sizeof(MaterialChunk) * hostIn->materialBufferLen);
+		fread(hostIn->materialBuffer, sizeof(MaterialChunk), hostIn->materialBufferLen, fp);
 
-			fread(&in.in.lightBufferLen, sizeof(int), 1, fp);
-			in.in.lightBuffer = (LightChunk*)allocator(sizeof(LightChunk) * in.in.lightBufferLen);
-			fread(in.in.lightBuffer, sizeof(LightChunk), in.in.lightBufferLen, fp);
-
-			fread(&in.in.cameraBufferLen, sizeof(int), 1, fp);
-			in.in.cameraBuffer = (CameraChunk*)allocator(sizeof(CameraChunk) * in.in.cameraBufferLen);
-			fread(in.in.cameraBuffer, sizeof(CameraChunk), in.in.cameraBufferLen, fp);
-
-			fread(&in.in.skyboxMaterialBufferLen, sizeof(int), 1, fp);
-			in.in.skyboxMaterialBuffer = (SkyboxChunk*)allocator(sizeof(SkyboxChunk) * in.in.skyboxMaterialBufferLen);
-			fread(in.in.skyboxMaterialBuffer, sizeof(SkyboxChunk), in.in.skyboxMaterialBufferLen, fp);
-
-			fread(&in.in.materialBufferLen, sizeof(int), 1, fp);
-			in.in.materialBuffer = (MaterialChunk*)allocator(sizeof(MaterialChunk) * in.in.materialBufferLen);
-			fread(in.in.materialBuffer, sizeof(MaterialChunk), in.in.materialBufferLen, fp);
-
-			fread(&in.in.selectedCameraIndex, sizeof(int), 1, fp);
-		}
-
-		{
-			fread(&(*reqBuffer)->output, sizeof(FrameOutput), 1, fp);
-		}
+		fread(&hostIn->selectedCameraIndex, sizeof(int), 1, fp);
 	}
+	__host__ void LoadImmutableData(FrameImmutableInput* hostIn, FILE* fp, void* (*allocator)(size_t cb))
+	{
+		fread(&hostIn->meshBufferLen, sizeof(int), 1, fp);
+		hostIn->meshBuffer = (MeshChunk*)allocator(sizeof(MeshChunk) * hostIn->meshBufferLen);
+		for (int i = 0; i < hostIn->meshBufferLen; i++)
+			LoadMeshChunk(hostIn->meshBuffer + i, fp, allocator);
+
+		fread(&hostIn->skinnedMeshBufferLen, sizeof(int), 1, fp);
+		hostIn->skinnedMeshBuffer = (MeshChunk*)allocator(sizeof(MeshChunk) * hostIn->skinnedMeshBufferLen);
+		for (int i = 0; i < hostIn->skinnedMeshBufferLen; i++)
+			LoadMeshChunk(hostIn->skinnedMeshBuffer + i, fp, allocator);
+
+		fread(&hostIn->textureBufferLen, sizeof(int), 1, fp);
+		hostIn->textureBuffer = (Texture2DChunk*)allocator(sizeof(Texture2DChunk) * hostIn->textureBufferLen);
+		for (int i = 0; i < hostIn->textureBufferLen; i++)
+			LoadTexture2DChunk(hostIn->textureBuffer + i, fp, allocator);
+	}
+
+#pragma endregion IMPLEMENT_SUBROUTINES
 }

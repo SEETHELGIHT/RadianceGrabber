@@ -41,6 +41,7 @@ namespace RadGrabber
 	}
 
 	void SetFilePtr(FILE* ptr) { g_LogPtr = ptr; }
+	FILE* GetFilePtr() { return g_LogPtr; }
 
 	void __declspec(dllexport) __stdcall SetBlockLog(int isBlock)
 	{

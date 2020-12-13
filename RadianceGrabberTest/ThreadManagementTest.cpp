@@ -2,51 +2,22 @@
 #include "Marshal.cuh"
 #include "DLLEntry.h"
 #include "Pipeline.h"
+#include "Image.h"
+#include "ConfigUtility.h"
+#include "DeviceConfig.h"
 
 namespace RadGrabber
 {
 	namespace Test
 	{
-		class DummyColorTarget2 : public RadGrabber::IColorTarget
+		int SIngleFrameGenThreadManagementTest()
 		{
-		public:
-			DummyColorTarget2(int x, int y) : x(x), y(y)
-			{
-				mBuffer = new ColorRGBA[x * y];
-			}
-			~DummyColorTarget2()
-			{
-				delete[] mBuffer;
-			}
+			SetFilePtr(stdout);
 
-			virtual __host__ void UpdateColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override
-			{
-				mBuffer[pixelIndex] = (mBuffer[pixelIndex] * (samplingCount - 1) / samplingCount) + color / samplingCount;
-			}
-			virtual __host__ void CacheColorFromHost(int pixelIndex, int samplingCount, const ColorRGBA & color) override { }
-			virtual __host__ void UploadColorFromHost() override { }
-
-			__host__ __device__ virtual int GetFrameCount() const override { return 1; }
-			__host__ __device__ virtual int GetFrameWidth() const override { return x; }
-			__host__ __device__ virtual int GetFrameHeight() const override { return y; }
-
-			void WritePPM(FILE *fp)
-			{
-				fprintf(fp, "P3\n%d %d 255\n", GetFrameWidth(), GetFrameHeight());
-				for (int i = 0; i < GetFrameHeight(); i++, fprintf(fp, "\n"))
-					for (int j = 0; j < GetFrameWidth(); j++)
-						fprintf(fp, "%d %d %d ", (int)(mBuffer[i * GetFrameWidth() + j].r * 255), (int)(mBuffer[i * GetFrameWidth() + j].g * 255), (int)(mBuffer[i * GetFrameWidth() + j].b * 255));
-			}
-
-		public:
-			int x, y;
-			ColorRGBA* mBuffer;
-		};
-
-		int ThreadManagementTest()
-		{
-			FILE* fp;
-			fopen_s(&fp, "./SimpleScene.framerequest", "rb");
+			char buf[129] = "SimpleScene";
+			char buf2[257];
+			sprintf(buf2, "../UnityExampleProjects/URPForRT/%s.framerequest", buf);
+			FILE* fp = fopen(buf2, "rb");
 			FrameRequest* req = new FrameRequest();
 			LoadFrameRequest(fp, &req, malloc);
 			fclose(fp);
@@ -56,15 +27,72 @@ namespace RadGrabber
 			mar->opt = req->opt;
 			mar->output = req->output;
 
-			DummyColorTarget2* target = new DummyColorTarget2(mar->opt.resultImageResolution.x, mar->opt.resultImageResolution.y);
-
-			GenerateSingleFrameIncrementalTest(mar, target);
+			SimpleColorTarget* target = new SimpleColorTarget(mar->opt.resultImageResolution.x, mar->opt.resultImageResolution.y);
+			mar->output.pixelBuffer = target->GetHostColorBuffer();
+			GenerateSingleFrameIncremental(mar);
 
 			Sleep(10000);
 
 			StopGenerateSingleFrame();
 
 			while (IsSingleFrameGenerating());
+
+			delete mar;
+			delete target;
+
+			return 0;
+		}
+
+		MultiFrameRequest* mreq;
+		void MultiFrmaeUpdateFrameFunc(int frameIndex, void* rgbaPtr)
+		{
+			char buffer[4096];
+			sprintf(buffer, "./temp/%d", frameIndex);
+			ImageWrite(buffer, ".png", (ColorRGBA*)rgbaPtr, mreq->opt.resultImageResolution.x, mreq->opt.resultImageResolution.y);
+
+			if (frameIndex + 1 == mreq->input.GetCount())
+				VideoWrite("./temp/%s", ".png", "./temp/SimpleScene.avi", mreq->opt.resultImageResolution.x, mreq->opt.resultImageResolution.y, 60.0, mreq->input.GetCount());
+		}
+		int MultiFrameGenThreadManagementTest()
+		{
+			SetFilePtr(stdout);
+
+			char buf[129] = "SimpleScene";
+			char buf2[257];
+			sprintf(buf2, "../UnityExampleProjects/URPForRT/%s.multiframerequest", buf);
+			FILE* fp = fopen(buf2, "rb");
+			mreq = new MultiFrameRequest();
+			LoadMultiFrameRequest(fp, &mreq, malloc);
+			fclose(fp);
+
+			mreq->opt.updateFrameFunc = MultiFrmaeUpdateFrameFunc;
+
+			OptimalLaunchParam param;
+			GetOptimalBlockAndThreadDim(0, param);
+
+			Utility::FramePathTestConfig pathConfig;
+			pathConfig.RefreshValues();
+
+			if (!pathConfig.imageConfigIgnore)
+			{
+				pathConfig.Set(mreq->opt, param.threadCountinBlock, param.blockCountInGrid);
+				mreq->input.startIndex = pathConfig.startIndex;
+				mreq->input.endCount = pathConfig.endCount;
+			}
+
+			SimpleColorTarget* target = new SimpleColorTarget(mreq->opt.resultImageResolution.x, mreq->opt.resultImageResolution.y);
+			mreq->output.pixelBuffer = target->GetHostColorBuffer();
+			GenerateMultiFrameIncrementalRunitme(mreq);
+
+			Sleep(30000);
+
+			StopGenerateSingleFrame();
+
+			while (IsMultiFrameGenerating());
+
+			delete target;
+
+			puts("MultiFrameGenThreadManagementTest() END");
 
 			return 0;
 		}

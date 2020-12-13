@@ -1,4 +1,5 @@
 #include <cuda_runtime_api.h>
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
 #include <chrono>
 
@@ -14,6 +15,13 @@ namespace RadGrabber
 {
 	namespace Test
 	{
+		struct CheckItems
+		{
+			int selectedIndex;
+			CameraChunk c;
+			PathContant p;
+		};
+
 		int HostDeviceCopyTest()
 		{
 			OptimalLaunchParam p;
@@ -28,14 +36,14 @@ namespace RadGrabber
 			fclose(fp);
 
 			FrameInput* din;
-			AllocateDeviceMem(req, &din);
+			AllocateDeviceFrameRequest(req, &din);
 
 			curandState* randStates = (curandState*)MAllocDevice(sizeof(curandState) * segmentCount);
 			MSet(randStates, 0, sizeof(curandState) * segmentCount);
-			PathSegment2* segments = (PathSegment2*)MAllocDevice(sizeof(PathSegment2) * segmentCount);
-			MSet(segments, 0, sizeof(PathSegment2) * segmentCount);
-			PathSegment2* hostSegments = (PathSegment2*)malloc(sizeof(PathSegment2) * segmentCount);
-			memset(hostSegments, 0, sizeof(PathSegment2) * segmentCount);
+			PathSegment* segments = (PathSegment*)MAllocDevice(sizeof(PathSegment) * segmentCount);
+			MSet(segments, 0, sizeof(PathSegment) * segmentCount);
+			PathSegment* hostSegments = (PathSegment*)malloc(sizeof(PathSegment) * segmentCount);
+			memset(hostSegments, 0, sizeof(PathSegment) * segmentCount);
 
 			PathContant c;
 			c.maxDepth = 50;
@@ -60,12 +68,12 @@ namespace RadGrabber
 
 			CheckItems it = *item;
 
-			MCopy(hostSegments, segments, segmentCount * sizeof(PathSegment2), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+			MCopy(hostSegments, segments, segmentCount * sizeof(PathSegment), cudaMemcpyKind::cudaMemcpyDeviceToHost);
 
 			for (int i = 0; i < 10; i++)
 			{
 				printf("Ray::direction::(%.2f, %.2f, %.2f)\n", hostSegments[i].ray.direction.x, hostSegments[i].ray.direction.y, hostSegments[i].ray.direction.z);
-				printf("PathSegment2::pixelIndex::%d\n", hostSegments[i].pixelIndex);
+				printf("PathSegment::pixelIndex::%d\n", hostSegments[i].pixelIndex);
 			}
 
 			SAFE_DEVICE_DELETE(randStates);

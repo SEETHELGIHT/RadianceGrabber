@@ -1,7 +1,7 @@
-
-
 # Created by https://www.gitignore.io/api/cuda,windows,visualstudio
 # Edit at https://www.gitignore.io/?templates=cuda,windows,visualstudio
+
+UnityExampleProjects*
 
 ### CUDA ###
 *.i

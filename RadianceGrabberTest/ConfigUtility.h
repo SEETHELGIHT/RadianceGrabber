@@ -1,31 +1,39 @@
+#include <vector_types.h>
+
 #pragma once
 
 namespace RadGrabber
 {
+	struct RequestOption;
+
 	namespace Utility
 	{
-		class ConfigUtility
+		struct TestProjectConfig
 		{
-		public:
-			static void RefreshValues();
+			void RefreshValues();
 
-			static int GetMode();
+			int testMode;
+			char* frameRequestPath;
+			char* multiFrameRequestPath;
+		};
 
-			static bool IsImageConfigExist();
-			static int GetMaxSamplingCount();
-			static int GetPathMaxDepth();
-			static int GetImageWidth();
-			static int GetImageHeight();
+		struct FramePathTestConfig 
+		{
+			void Set(RequestOption& opt, dim3& threadCount, dim3& blockCount);
+			void RefreshValues();
 
-		private:
-			static int testMode;
-
-			static bool imageConfigExist;
-			static int maxSamplingCount;
-			static int pathMaxDepth;
-			static int imageWidth;
-			static int imageHeight;
-
+			bool imageConfigIgnore;
+			int maxSamplingCount;
+			int pathMaxDepth;
+			int threadIterateCount;
+			int imageWidth;
+			int imageHeight;
+			int pixelContent;
+			int incrementalMode;
+			dim3 threadCount;
+			dim3 blockCount;
+			int startIndex;
+			int endCount;
 		};
 	}
 }

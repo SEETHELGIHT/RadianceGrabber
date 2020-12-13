@@ -1,3 +1,5 @@
+#pragma warning( disable : 4819 )
+
 #include <cuda_runtime.h>
 #include "Define.h"
 
@@ -16,6 +18,11 @@ namespace RadGrabber
 	{
 		dim3 blockCountInGrid;
 		dim3 threadCountinBlock;
+
+		int GetMaxThreadCount()
+		{
+			return blockCountInGrid.x * blockCountInGrid.y * blockCountInGrid.z * threadCountinBlock.x * threadCountinBlock.y * threadCountinBlock.z;
+		}
 	};
 
 	__host__ void GetOptimalBlockAndThreadDim(IN int deviceIndex, OUT OptimalLaunchParam& outParam);

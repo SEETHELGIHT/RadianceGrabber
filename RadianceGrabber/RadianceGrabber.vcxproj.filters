@@ -19,16 +19,21 @@
     <ClCompile Include="Unity\RenderAPI_D3D12.cpp">
       <Filter>Unity</Filter>
     </ClCompile>
-    <ClCompile Include="DLLEntry.cpp" />
     <ClCompile Include="Unity\gl3w\gl3w.c">
       <Filter>Unity\Unity</Filter>
     </ClCompile>
-    <ClCompile Include="Integrator.h" />
-    <ClCompile Include="Marshal.cuh" />
-    <ClCompile Include="Util.cpp" />
+    <ClCompile Include="Util.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Image.cpp">
+      <Filter>OpenCV</Filter>
+    </ClCompile>
+    <ClCompile Include="DLLEntry.cpp" />
+    <ClCompile Include="BDPTIntegrator.cpp">
+      <Filter>Core\Intergrator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Define.h" />
     <ClInclude Include="Unity\Unity\IUnityGraphics.h">
       <Filter>Unity\Unity</Filter>
     </ClInclude>
@@ -62,13 +67,59 @@
     <ClInclude Include="Unity\gl3w\gl3w.h">
       <Filter>Unity\gl3w</Filter>
     </ClInclude>
-    <ClInclude Include="Pipeline.h" />
-    <ClInclude Include="DeviceConfig.h" />
-    <ClInclude Include="DataTypes.cuh" />
-    <ClInclude Include="Aggregate.h" />
-    <ClInclude Include="ColorTarget.h" />
-    <ClInclude Include="Util.h" />
     <ClInclude Include="DLLEntry.h" />
+    <ClInclude Include="DataTypes.cuh">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorTarget.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="DeviceConfig.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Marshal.cuh">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Pipeline.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PathIntegrator.h">
+      <Filter>Core\Intergrator</Filter>
+    </ClInclude>
+    <ClInclude Include="MLTIntegrator.h">
+      <Filter>Core\Intergrator</Filter>
+    </ClInclude>
+    <ClInclude Include="IterativePathIntegrator.h">
+      <Filter>Core\Intergrator</Filter>
+    </ClInclude>
+    <ClInclude Include="Integrator.h">
+      <Filter>Core\Intergrator</Filter>
+    </ClInclude>
+    <ClInclude Include="LinearAggregate.h">
+      <Filter>Core\Aggregate</Filter>
+    </ClInclude>
+    <ClInclude Include="Aggregate.h">
+      <Filter>Core\Aggregate</Filter>
+    </ClInclude>
+    <ClInclude Include="AcceleratedAggregateInternal.h">
+      <Filter>Core\Aggregate</Filter>
+    </ClInclude>
+    <ClInclude Include="AcceleratedAggregate.h">
+      <Filter>Core\Aggregate</Filter>
+    </ClInclude>
+    <ClInclude Include="Image.h">
+      <Filter>OpenCV</Filter>
+    </ClInclude>
+    <ClInclude Include="BDPTIntegrator.h">
+      <Filter>Core\Intergrator</Filter>
+    </ClInclude>
+    <ClInclude Include="Microfacet.h" />
+    <ClInclude Include="Filters.h">
+      <Filter>PostProcessing</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Unity">
@@ -79,6 +130,21 @@
     </Filter>
     <Filter Include="Unity\gl3w">
       <UniqueIdentifier>{e1bf6e5d-9faf-41ce-a6fc-a8a58de6e1d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{3ef29064-3b6c-4283-bfc1-416661b1001f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Aggregate">
+      <UniqueIdentifier>{a86b7438-5594-44a6-bf16-861207b649ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Intergrator">
+      <UniqueIdentifier>{e8e84c9d-9de9-42ca-a911-a06bf6c3fbc0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OpenCV">
+      <UniqueIdentifier>{4e27e253-4a33-4cdb-a7d5-040d8fb7c788}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PostProcessing">
+      <UniqueIdentifier>{bb6f7103-18a8-43f0-b959-31bd61f1bf96}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -91,14 +157,57 @@
     <Text Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="Integrator.cu" />
-    <CudaCompile Include="Marshal.cu" />
-    <CudaCompile Include="DataTypes.cu" />
-    <CudaCompile Include="Sample.cu" />
-    <CudaCompile Include="Sample.cuh" />
-    <CudaCompile Include="Aggregate.cu" />
-    <CudaCompile Include="ColorTarget.cu" />
-    <CudaCompile Include="Pipeline.cu" />
-    <CudaCompile Include="DeviceConfig.cu" />
+    <CudaCompile Include="Integrator.cu">
+      <Filter>Core\Intergrator</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IterativePathIntegrator.cpp">
+      <Filter>Core\Intergrator</Filter>
+    </CudaCompile>
+    <CudaCompile Include="PathIntegrator.cpp">
+      <Filter>Core\Intergrator</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MLTIntegrator.cpp">
+      <Filter>Core\Intergrator</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Aggregate.cu">
+      <Filter>Core\Aggregate</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ColorTarget.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="DataTypes.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Define.h">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Marshal.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Pipeline.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Sample.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="DeviceConfig.cu">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AcceleratedAggregate.cpp">
+      <Filter>Core\Aggregate</Filter>
+    </CudaCompile>
+    <CudaCompile Include="LinearAggregate.cpp">
+      <Filter>Core\Aggregate</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AcceleratedAggregateInternal.cpp">
+      <Filter>Core\Aggregate</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Sample.cuh">
+      <Filter>Core</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Microfacet.cpp" />
+    <CudaCompile Include="Filters.cpp">
+      <Filter>PostProcessing</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

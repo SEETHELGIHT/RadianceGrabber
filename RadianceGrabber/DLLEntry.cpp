@@ -6,10 +6,13 @@
 
 #include "Pipeline.h"
 #include "DeviceConfig.h"
-#include "Integrator.h"
-#include "Aggregate.h"
 #include "ColorTarget.h"
 #include "Util.h"
+
+#include "PathIntegrator.h"
+#include "IterativePathIntegrator.h"
+#include "AcceleratedAggregate.h"
+#include "LinearAggregate.h"
 
 using namespace RadGrabber;
 
@@ -25,41 +28,32 @@ struct SingleFrameGenerationSegment
 	IAggregate* aggregate;
 	IColorTarget* target;
 	bool startTerminate;
+	bool onFrameGenerating;
 
 	void ClearSegment()
 	{
-		if (integrator)
-		{
-			delete integrator;
-			integrator = nullptr;
-		}
-		if (target)
-		{
-			delete target;
-			target = nullptr;
-		}
+		SAFE_HOST_DELETE(integrator);
+		SAFE_HOST_DELETE(target);
+		
 		if (aggregate)
 		{
-			LinearAggregate::DestroyDeviceAggregate((LinearAggregate*)aggregate);
+			AcceleratedAggregate::DestroyDeviceAggregate((AcceleratedAggregate*)aggregate);
 			aggregate = nullptr;
 		};
-		Log("ClearSegment::4\n");
 		if (deviceInput)
 		{
-			FreeDeviceMem(deviceInput);
+			FreeDeviceFrameRequest(deviceInput);
 			deviceInput = nullptr;
 		}
-		Log("ClearSegment::5\n");
-
 		if (req)
 		{
 			delete req;
 			req = nullptr;
 		}
-		Log("ClearSegment::7\n");
 	}
 };
 SingleFrameGenerationSegment g_SingleFrameCalcSegment;
+const IAggregate* GetConstAgg(int m) { return g_SingleFrameCalcSegment.aggregate; }
 
 extern "C"
 {
@@ -81,36 +75,58 @@ extern "C"
 
 		return 0;
 	}
-
-	void GenerateSingleFrameIncrementalInternal(SingleFrameGenerationSegment* seg)
+	int __declspec(dllexport) __cdecl SaveMultiFrameRequest(const char* fileName, RadGrabber::MultiFrameRequestMarshal* req)
 	{
-		while (!g_SingleFrameCalcSegment.threadNativeHandle);
+		MultiFrameRequest* other_req = new MultiFrameRequest(*req);
+
+		char buffer[4097];
+		sprintf(buffer, "./%s.multiframerequest", fileName);
+
+		FILE* fp = nullptr;
+		fopen_s(&fp, buffer, "wb");
+		Log("StoreFrameRequest return size::%ld\n", StoreMultiFrameRequest(other_req, fp));
+		fclose(fp);
+
+		return 0;
+	}
+
+	void GenerateSingleFrameIncrementalInternal(void* ptr)
+	{
+		SingleFrameGenerationSegment* seg = &g_SingleFrameCalcSegment;
+		seg->onFrameGenerating = true;
 
 		Log("GenerateSingleFrameIncrementalInternal Start\n");
 
-		AllocateDeviceMem(seg->req, &seg->deviceInput);
+		AllocateDeviceFrameRequest(seg->req, &seg->deviceInput);
 
+		int deviceID;
+		cudaGetDevice(&deviceID);
 		OptimalLaunchParam param;
-		GetOptimalBlockAndThreadDim(0, param);
+		GetOptimalBlockAndThreadDim(deviceID, param);
 
-		seg->integrator = new PathIntegrator(seg->req->opt);
-		seg->aggregate = AcceleratedAggregate::GetAggregateDevice(&seg->req->input, seg->deviceInput, 0, param.threadCountinBlock.x * param.blockCountInGrid.x);
+		seg->integrator = new PathIntegrator(param, seg->req->opt.resultImageResolution);
+		seg->aggregate = AcceleratedAggregate::GetAggregateDevice(&seg->req->input, seg->deviceInput, 0, param.GetMaxThreadCount());
 		seg->target = new SingleFrameColorTarget(0 /*it must be configurated!*/, seg->req->opt.resultImageResolution, seg->req->output.pixelBuffer);
 
-		seg->integrator->Render(*seg->aggregate, seg->req->input, *seg->deviceInput, seg->req->opt, *seg->target, param);
+		seg->integrator->RenderIncremental(GetConstAgg, HostDevicePair<IMultipleInput*>(&seg->req->input, seg->deviceInput), *seg->target, seg->req->opt, param);
 
 		Log("GenerateSingleFrameIncrementalInternal End\n");
 
-		std::lock_guard<std::mutex> lock(seg->clearSegmentMutex);
-
-		if (seg->thread)
 		{
-			seg->thread = nullptr;
-			seg->threadNativeHandle = nullptr;;
-			seg->ClearSegment();
-			seg->startTerminate = false;
+			std::unique_lock<std::mutex> lock(seg->clearSegmentMutex);
 
-			Log("GenerateSingleFrameIncrementalInternal Cleanup");
+			if (!seg->startTerminate)
+			{
+				seg->thread = nullptr;
+				seg->threadNativeHandle = nullptr;;
+				seg->ClearSegment();
+				seg->startTerminate = false;
+				seg->onFrameGenerating = false;
+
+				Log("GenerateSingleFrameIncrementalInternal Cleanup");
+			}
+			else
+				Log("GenerateSingleFrameIncrementalInternal Passed as stopping thread cleanup");
 		}
 	}
 	int __declspec(dllexport) __cdecl GenerateSingleFrameIncremental(RadGrabber::FrameRequestMarshal* req)
@@ -118,12 +134,16 @@ extern "C"
 		if (g_SingleFrameCalcSegment.req != nullptr)
 			return -1;
 
+		Log("GenerateSingleFrameIncremental :: Start");
+
 		FrameRequest* other_req = new FrameRequest(*req);
 
 		g_SingleFrameCalcSegment.req = other_req;
-		g_SingleFrameCalcSegment.thread = new std::thread(GenerateSingleFrameIncrementalInternal, &g_SingleFrameCalcSegment);
+		g_SingleFrameCalcSegment.thread = new std::thread(GenerateSingleFrameIncrementalInternal, nullptr);
 		g_SingleFrameCalcSegment.threadNativeHandle = g_SingleFrameCalcSegment.thread->native_handle();
 		g_SingleFrameCalcSegment.thread->detach();
+
+		Log("GenerateSingleFrameIncremental :: Delay");
 
 		return 0;
 	}
@@ -144,64 +164,247 @@ extern "C"
 	}
 	int StopGenerateSingleFrameInternal()
 	{
-		std::lock_guard<std::mutex> lock(g_SingleFrameCalcSegment.clearSegmentMutex);
+		Log("StopGenerateSingleFrameInternal :: Start");
+
+		{
+			std::unique_lock<std::mutex> lock(g_SingleFrameCalcSegment.clearSegmentMutex);
+			g_SingleFrameCalcSegment.startTerminate = true;
+		}
 
 		if (g_SingleFrameCalcSegment.thread)
 		{
-			g_SingleFrameCalcSegment.startTerminate = true;
+			if (g_SingleFrameCalcSegment.startTerminate)
+			{
+				Log("StopGenerateSingleFrameInternal Passed as execution thread cleanup");
+				return 0;
+			}
+			
+			g_SingleFrameCalcSegment.startTerminate = false;
+
+			Log("StopGenerateSingleFrameInternal :: thread removing..");
 
 			g_SingleFrameCalcSegment.integrator->ReserveCancel();
 
 			while (!g_SingleFrameCalcSegment.integrator->IsCancel());
 
+			Log("StopGenerateSingleFrameInternal :: thread exited!");
+
 			TerminateThread(g_SingleFrameCalcSegment.threadNativeHandle, 0);
 			WaitForSingleObject(g_SingleFrameCalcSegment.threadNativeHandle, INFINITE);
 
-			if (g_SingleFrameCalcSegment.thread)
-			{
-				delete g_SingleFrameCalcSegment.thread;
-				g_SingleFrameCalcSegment.thread = nullptr;
-				g_SingleFrameCalcSegment.threadNativeHandle = nullptr;
-			}
+			delete g_SingleFrameCalcSegment.thread;
+			g_SingleFrameCalcSegment.thread = nullptr;
+			g_SingleFrameCalcSegment.threadNativeHandle = nullptr;
 
-			g_SingleFrameCalcSegment.ClearSegment();	
-			g_SingleFrameCalcSegment.startTerminate = false;
+			g_SingleFrameCalcSegment.ClearSegment();
+			g_SingleFrameCalcSegment.onFrameGenerating = false;
 		}
+
+		Log("StopGenerateSingleFrameInternal :: End");
 
 		return 0;
 	}
-	int __declspec(dllexport) __stdcall StopGenerateSingleFrame()
+	int __declspec(dllexport) __cdecl StopGenerateSingleFrame()
 	{
-		if (g_SingleFrameCalcSegment.thread)
+		if (g_SingleFrameCalcSegment.onFrameGenerating && !g_SingleFrameCalcSegment.startTerminate)
 			new std::thread(StopGenerateSingleFrameInternal);
 		else
 			return -1;
 
 		return 0;
 	}
-	int __declspec(dllexport) __stdcall IsSingleFrameGenerating()
+	int __declspec(dllexport) __cdecl IsSingleFrameGenerating()
 	{
-		return g_SingleFrameCalcSegment.thread != nullptr;
+		return g_SingleFrameCalcSegment.onFrameGenerating;
 	}
 
-	int __declspec(dllexport) __stdcall GenerateMultiFrame(MultiFrameRequest* req)
+	struct MultiFrameGenerationSegment
 	{
-		return 0;
-	}
-	int __declspec(dllexport) __stdcall GenerateMultiFrameIncremental(MultiFrameRequest* req)
-	{
-		return 0;
-	}
-	int StopGenerateMultiFrame()
-	{
-		return 0;
-	}
-	int GetGeneratedCurrentFrameIndex()
+		std::thread* thread;
+		void* threadNativeHandle;
+		std::mutex clearSegmentMutex;
+
+		MultiFrameRequest* req;
+		MultiFrameInput* deviceInput;
+		ICancelableIntergrator* integrator;
+		AcceleratedAggregate* aggregateArray;
+		IColorTarget* target;
+		bool startTerminate;
+		bool onFrameGenerating;
+
+		void ClearSegment()
+		{
+			SAFE_HOST_DELETE(integrator);
+			SAFE_HOST_DELETE(target);
+
+			if (aggregateArray)
+			{
+				AcceleratedAggregate::DestroyDeviceAggregate(req->input.in.mutableInputLen, aggregateArray);
+				aggregateArray = nullptr;
+			};
+			if (deviceInput)
+			{
+				FreeDeviceMultiFrameRequest(deviceInput);
+				deviceInput = nullptr;
+			}
+			if (req)
+			{
+				delete req;
+				req = nullptr;
+			}
+		}
+
+		void AfterImage(int frameCount)
+		{
+		}
+	};
+	MultiFrameGenerationSegment g_MultiFrameCalcSegment;
+	const IAggregate* GetAggregate(int m) { return g_MultiFrameCalcSegment.aggregateArray + m; }
+
+	int __declspec(dllexport) __cdecl GenerateMultiFrame(MultiFrameRequest* req)
 	{
 		return 0;
 	}
 
-	int __declspec(dllexport) __stdcall StopAll()
+	void GenerateMultiFrameIncrementalInternal(MultiFrameGenerationSegment* seg)
+	{
+		seg->onFrameGenerating = true;
+
+		Log("GenerateMultiFrameIncrementalInternal Start\n");
+
+		AllocateDeviceMultiFrameRequest(seg->req, &seg->deviceInput);
+
+		OptimalLaunchParam param;
+		GetOptimalBlockAndThreadDim(0, param);
+
+		AcceleratedAggregate* deviceAAGArray = (AcceleratedAggregate*)MAllocDevice(sizeof(AcceleratedAggregate) * seg->req->input.in.mutableInputLen);
+		AcceleratedAggregate::GetAggregateDevice(seg->req->input.GetCount(), deviceAAGArray, &seg->req->input, seg->deviceInput, param.GetMaxThreadCount());
+		seg->aggregateArray = deviceAAGArray;
+
+		seg->integrator = new PathIntegrator(param, seg->req->opt.resultImageResolution);
+		//seg->aggregate = AcceleratedAggregate::GetAggregateDevice(&seg->req->input, seg->deviceInput, 0, param.GetMaxThreadCount());
+		seg->target = new SingleFrameColorTarget(0 /*it must be configurated!*/, seg->req->opt.resultImageResolution, seg->req->output.pixelBuffer);
+
+		seg->integrator->RenderStraight(GetAggregate, HostDevicePair<IMultipleInput*>(&seg->req->input, seg->deviceInput), *seg->target, seg->req->opt, param);
+
+		Log("GenerateMultiFrameIncrementalInternal End\n");
+
+		{
+			std::unique_lock<std::mutex> lock(seg->clearSegmentMutex);
+
+			if (!seg->startTerminate)
+			{
+				seg->thread = nullptr;
+				seg->threadNativeHandle = nullptr;;
+				seg->ClearSegment();
+				seg->startTerminate = false;
+				seg->onFrameGenerating = false;
+
+				Log("GenerateMultiFrameIncrementalInternal Cleanup");
+			}
+			else
+				Log("GenerateMultiFrameIncrementalInternal Passed as stopping thread cleanup");
+		}
+	}
+	int __declspec(dllexport) __cdecl GenerateMultiFrameIncremental(MultiFrameRequestMarshal* req)
+	{
+		if (g_MultiFrameCalcSegment.req != nullptr)
+			return -1;
+
+		MultiFrameRequest* other_req = new MultiFrameRequest(*req);
+
+		g_MultiFrameCalcSegment.req = other_req;
+		g_MultiFrameCalcSegment.thread = new std::thread(GenerateMultiFrameIncrementalInternal, &g_MultiFrameCalcSegment);
+		g_MultiFrameCalcSegment.threadNativeHandle = g_MultiFrameCalcSegment.thread->native_handle();
+		g_MultiFrameCalcSegment.thread->detach();
+
+		return 0;
+	}
+	int __declspec(dllexport) __cdecl GenerateMultiFrameIncrementalRunitme(MultiFrameRequest* req)
+	{
+		if (g_MultiFrameCalcSegment.req != nullptr)
+			return -1;
+
+		g_MultiFrameCalcSegment.req = req;
+		g_MultiFrameCalcSegment.thread = new std::thread(GenerateMultiFrameIncrementalInternal, &g_MultiFrameCalcSegment);
+		g_MultiFrameCalcSegment.threadNativeHandle = g_MultiFrameCalcSegment.thread->native_handle();
+		g_MultiFrameCalcSegment.thread->detach();
+
+		return 0;
+	}
+	int __declspec(dllexport) __cdecl GenerateMultiFrameIncrementalRanged(RadGrabber::MultiFrameRequestMarshal* req, int startIndex, int endCount)
+	{
+		if (g_MultiFrameCalcSegment.req != nullptr)
+			return -1;
+
+		MultiFrameRequest* other_req = new MultiFrameRequest(*req, startIndex, endCount);
+
+		g_MultiFrameCalcSegment.req = other_req;
+		g_MultiFrameCalcSegment.thread = new std::thread(GenerateMultiFrameIncrementalInternal, &g_MultiFrameCalcSegment);
+		g_MultiFrameCalcSegment.threadNativeHandle = g_MultiFrameCalcSegment.thread->native_handle();
+		g_MultiFrameCalcSegment.thread->detach();
+
+		return 0;
+	}
+	int StopGenerateMultiFrameInternal()
+	{
+		Log("StopGenerateMultiFrameInternal :: Start");
+
+		{
+			std::unique_lock<std::mutex> lock(g_MultiFrameCalcSegment.clearSegmentMutex);
+			g_MultiFrameCalcSegment.startTerminate = true;
+		}
+
+		if (g_MultiFrameCalcSegment.thread)
+		{
+			if (g_MultiFrameCalcSegment.startTerminate)
+			{
+				Log("StopGenerateMultiFrameInternal Passed as execution thread cleanup");
+				return 0;
+			}
+
+			g_MultiFrameCalcSegment.startTerminate = false;
+
+			Log("StopGenerateMultiFrameInternal :: thread removing..");
+
+			g_MultiFrameCalcSegment.integrator->ReserveCancel();
+
+			while (!g_MultiFrameCalcSegment.integrator->IsCancel());
+
+			TerminateThread(g_MultiFrameCalcSegment.threadNativeHandle, 0);
+			WaitForSingleObject(g_MultiFrameCalcSegment.threadNativeHandle, INFINITE);
+
+			Log("StopGenerateMultiFrameInternal :: thread exited!");
+
+			if (g_MultiFrameCalcSegment.thread)
+			{
+				delete g_MultiFrameCalcSegment.thread;
+				g_MultiFrameCalcSegment.thread = nullptr;
+				g_MultiFrameCalcSegment.threadNativeHandle = nullptr;
+			}
+
+			g_MultiFrameCalcSegment.ClearSegment();
+			g_MultiFrameCalcSegment.onFrameGenerating = false;
+		}
+
+		Log("StopGenerateMultiFrameInternal :: End");
+
+		return 0;
+	}
+	int __declspec(dllexport) __cdecl StopGenerateMultiFrame()
+	{
+		if (g_MultiFrameCalcSegment.onFrameGenerating && !g_MultiFrameCalcSegment.startTerminate)
+			new std::thread(StopGenerateMultiFrameInternal);
+		else
+			return -1;
+
+		return 0;
+	}
+	int __declspec(dllexport) __cdecl IsMultiFrameGenerating()
+	{
+		return g_MultiFrameCalcSegment.onFrameGenerating;
+	}
+	int __declspec(dllexport) __cdecl GetGeneratedCurrentFrameIndex()
 	{
 		return 0;
 	}

@@ -8,65 +8,136 @@
 
 namespace RadGrabber
 {
-	__host__ __device__ void CameraChunk::GetRay(const Vector2f& uv, Ray& r)
+	__host__ __device__ bool LightChunk::IntersectRay(const Ray & rayInWS, SurfaceIntersection& isect, float& intersectDistance) const
 	{
-		Vector3f	nearPos = Vector3f(uv.x, uv.y, 0),
-					farPos = Vector3f(uv.x, uv.y, 1);
-
-		nearPos = projectionInverseMatrix.TransformPoint(nearPos);
-		nearPos = cameraInverseMatrix.TransformPoint(nearPos);
-
-		farPos = projectionInverseMatrix.TransformPoint(farPos);
-		farPos = cameraInverseMatrix.TransformPoint(farPos);
-
-		r.origin = nearPos;
-		r.direction = (farPos - nearPos).normalized();
-	}
-
-	__host__ __device__ void CameraChunk::GetPixelRay(int pixelIndex, Vector2i s, Ray& r)
-	{
-		GetRay(Vector2f((float)(pixelIndex % s.x) / s.x, (float)(pixelIndex / s.x) / s.y) * 2 - Vector2f::One(), r);
-	}
-
-	__host__ __device__ bool LightChunk::IntersectRay(const Ray & ray, SurfaceIntersection& isect, float& intersectDistance) const
-	{
+		Ray rayInMS = Ray(
+			this->transformInverseMatrix.TransformPoint(rayInWS.origin),
+			this->transformInverseMatrix.TransformVector(rayInWS.direction)
+		);
 		/*
 			ray-plane intersection
-			1. R(t) = r0 + td, (p - p0)*n = 0, p is intersection point on plane, p0 is other point on plane
-			2. (r0 + td - p0)*n = 0
-			3. td*n + (r0-p0)*n = 0
-			4. td*n = (p0-r0)*n
-			5. t = (p0-r0)*n / d*n
+			R(t) = r0 + td, (p - p0)*n = 0, p is intersection point on plane, p0 is other point on plane
+			1. (r0 + td - p0)*n = 0
+			2. td*n + (r0-p0)*n = 0
+			3. td*n = (p0-r0)*n
+			4. t = (p0-r0)*n / d*n
 		*/
 		switch (type)
 		{
 		case eUnityLightType::Area:
 		{
-			float denom = Dot(-ray.direction, forward);
+			float denom = Dot(-rayInWS.direction, forward);
 			if (denom <= 0)
 				return false;
 
-			float t = Dot((position - ray.origin), forward) / denom;
+			float t = Dot((rayInWS.origin - position), forward) / denom;
 			if (t <= 0)
 				return false;
 
-			Vector3f delta = ray.origin + ray.direction * t - position;
+			Vector3f delta = rayInWS.origin + rayInWS.direction * t - position;
 			quaternion.Inversed().Rotate(delta);
+			delta = Abs(delta);
 
-			return delta.x <= width && delta.y <= height;
+			if (delta.x <= width && delta.y <= height)
+			{
+				isect.isHit = 1;
+				isect.isGeometry = 0;
+				intersectDistance = t;
+				return true;
+			}
+			else
+				return false;
 		}
 		case eUnityLightType::Disc:
 		{
-			float denom = Dot(-ray.direction, forward);
+			float denom = Dot(-rayInWS.direction, forward);
 			if (denom <= 0)
 				return false;
 
-			float t = Dot((position - ray.origin), forward) / denom;
+			float t = Dot((rayInWS.origin - position), forward) / denom;
 			if (t <= 0)
 				return false;
 
-			float sqrMag = ((ray.origin + ray.direction * t) - position).sqrMagnitude();
-			return sqrMag <= range * range;
+			float sqrMag = ((rayInWS.origin + rayInWS.direction * t) - position).sqrMagnitude();
+			if (sqrMag <= range * range)
+			{
+				isect.isHit = 1;
+				isect.isGeometry = 0;
+				intersectDistance = t;
+				return true;
+			}
+			else
+				return false;
+		}
+		case eUnityLightType::Directional:
+		case eUnityLightType::Point:
+		case eUnityLightType::Spot:
+		default:
+			isect.isHit = 0;
+			return false;
+		}
+	}
+
+	__host__ __device__ bool LightChunk::IntersectRay(const Ray & rayInWS, float minDistance, float maxDistance, float& intersectDistance) const
+	{
+		Ray rayInMS = Ray(
+			this->transformInverseMatrix.TransformPoint(rayInWS.origin),
+			this->transformInverseMatrix.TransformVector(rayInWS.direction)
+		);
+		/*
+			ray-plane intersection
+			R(t) = r0 + td, (p - p0)*n = 0, p is intersection point on plane, p0 is other point on plane
+			1. (r0 + td - p0)*n = 0
+			2. td*n + (r0-p0)*n = 0
+			3. td*n = (p0-r0)*n
+			4. t = (p0-r0)*n / d*n
+		*/
+		switch (type)
+		{
+		case eUnityLightType::Area:
+		{
+			float denom = Dot(-rayInWS.direction, forward);
+			if (denom <= 0)
+				return false;
+
+			float t = Dot((rayInWS.origin - position), forward) / denom;
+			if (t <= 0)
+				return false;
+			if (minDistance > intersectDistance || intersectDistance >= maxDistance)
+				return false;
+
+			Vector3f delta = rayInWS.origin + rayInWS.direction * t - position;
+			quaternion.Inversed().Rotate(delta);
+			delta = Abs(delta);
+
+			if (delta.x <= width && delta.y <= height)
+			{
+				intersectDistance = t;
+				return true;
+			}
+			else
+				return false;
+		}
+		case eUnityLightType::Disc:
+		{
+			float denom = Dot(-rayInWS.direction, forward);
+			if (denom <= 0)
+				return false;
+
+			float t = Dot((rayInWS.origin - position), forward) / denom;
+			if (t <= 0)
+				return false;
+			if (minDistance > intersectDistance || intersectDistance >= maxDistance)
+				return false;
+
+			float sqrMag = ((rayInWS.origin + rayInWS.direction * t) - position).sqrMagnitude();
+			if (sqrMag <= range * range)
+			{
+				intersectDistance = t;
+				return true;
+			}
+			else
+				return false;
 		}
 		case eUnityLightType::Directional:
 		case eUnityLightType::Point:
@@ -130,30 +201,23 @@ namespace RadGrabber
 		{
 		case eUnityLightType::Area:
 		{
-			Vector3f	max, pos;
+			Vector3f	maxVal = Vector3f::Zero(), pos;
 
-			pos = Vector3f(+width / 2, +height / 2, 0.f);
-			transformMatrix.TransformPoint(pos);
-			pos += position;
-			max = Max(max, pos);
+			pos = transformMatrix.TransformPoint(Vector3f(+width / 2, +height / 2, 0.f));
+			maxVal = Max(maxVal, pos);
 
-			pos = Vector3f(-width / 2, +height / 2, 0.f);
-			transformMatrix.TransformPoint(pos);
-			pos += position;
-			max = Max(max, pos);
+			pos = transformMatrix.TransformPoint(Vector3f(-width / 2, +height / 2, 0.f));
+			maxVal = Max(maxVal, pos);
 
-			pos = Vector3f(-width / 2, -height / 2, 0.f);
-			transformMatrix.TransformPoint(pos);
-			pos += position;
-			max = Max(max, pos);
+			pos = transformMatrix.TransformPoint(Vector3f(-width / 2, -height / 2, 0.f));
+			maxVal = Max(maxVal, pos);
 
-			pos = Vector3f(+width / 2, -height / 2, 0.f);
-			transformMatrix.TransformPoint(pos);
-			pos += position;
-			max = Max(max, pos);
+			pos = transformMatrix.TransformPoint(Vector3f(+width / 2, -height / 2, 0.f));
+			maxVal = Max(maxVal, pos);
 
 			bb.center = position;
-			bb.extents = max - bb.center;
+			bb.extents = maxVal - bb.center + Vector3f(EPSILON, EPSILON, EPSILON);
+
 			return true;
 		}			
 		case eUnityLightType::Disc:
@@ -169,91 +233,6 @@ namespace RadGrabber
 		}
 	}
 
-	__host__ __device__ bool LightChunk::Sample(const Ray& ray, const SurfaceIntersection& isect, Vector3f& color) const
-	{
-		switch (type)
-		{
-		case eUnityLightType::Area:
-		case eUnityLightType::Disc:
-			color = this->color;
-			return true;
-		case eUnityLightType::Directional:
-		case eUnityLightType::Point:
-		case eUnityLightType::Spot:
-		default:
-			return false;
-		}
-	}
-
-	// TODO:: microfacet setting
-	__device__ void URPLitMaterialChunk::GetMaterialInteract(
-		IN const Texture2DChunk* textureBuffer, IN SurfaceIntersection* isect, IN curandState* state,
-		INOUT Vector4f& attenuPerComp, INOUT Ray& ray) const
-	{
-		Vector2f randomSample(curand_uniform(state), curand_uniform(state));
-
-		if (bumpMapIndex >= 0)
-		{
-			Vector3f bitanWS = Cross(isect->normal, isect->tangent);
-			ColorRGBA normTS = textureBuffer[bumpMapIndex].Sample8888(isect->uv);
-			isect->normal = normTS.r * bitanWS + normTS.g * isect->normal + normTS.b * isect->tangent;
-		}
-			
-		//if (IsMetallicSetup())
-		{
-			float smoothness = SampleSmoothness(textureBuffer, isect->uv);
-			float metallic = SampleMetallic(textureBuffer, isect->uv);
-			
-			//if (IsOpaque())
-			{
-				if (IsAlphaClipping() && randomSample.x >= textureBuffer[baseMapIndex].Sample8888(isect->uv).r)
-				{
-					goto METALLIC_TRANSPARENT_INTERACT;
-				}
-
-				ray.origin = isect->position;
-
-				// metal
-				if (randomSample.x < metallic)
-				{
-					ray.direction = Reflect(ray.direction, isect->normal);
-
-					Vector3f randDirection = UniformSampleSphere(randomSample);
-					if (randDirection != ray.direction)
-						ray.direction = (ray.direction + (1.f - smoothness) * randDirection).normalized();
-				}
-				// dielectric
-				else
-				{
-					ray.direction = UniformSampleHemisphereInFrame(isect->normal, randomSample);
-				}
-				
-				Vector3f albedo = SampleAlbedo(textureBuffer, isect->uv);
-				attenuPerComp *= Vector4f(albedo.x, albedo.y, albedo.z, 1.f);
-			}
-			// transparent 
-			//else
-			{
-METALLIC_TRANSPARENT_INTERACT:
-			}
-		}
-		//else
-		{
-			/*
-				specular
-			*/
-		}
-	}
-
-	__device__ void MaterialChunk::GetMaterialInteract(IN const Texture2DChunk* textureBuffer, IN SurfaceIntersection* isect, IN curandState* state, INOUT Vector4f& attenuPerComp, INOUT Ray& ray) const
-	{
-		switch (type)
-		{
-		case eShaderType::UniversalLit:
-			URPLit.GetMaterialInteract(textureBuffer, isect, state, attenuPerComp, ray);
-			break;
-		}
-	}
 	__host__ __device__ ColorRGBA Texture2DChunk::Sample8888(const Vector2f& uv) const
 	{
 #ifndef __CUDA_ARCH__
@@ -268,8 +247,8 @@ METALLIC_TRANSPARENT_INTERACT:
 		}
 		case eUnityFilterMode::Bilinear:
 		{
-			int	fx = floor(uv.x * size.x), cx = ceil(uv.x * size.x),
-				fy = floor(uv.y * size.y), cy = ceil(uv.y * size.y);
+			int	fx = int(uv.x * size.x), cx = int(uv.x * size.x + 1),
+				fy = int(uv.y * size.y), cy = int(uv.y * size.y + 1);
 			ColorRGBA	fyc = ((ColorRGBA)colorPtr[fy * size.x + fx] + (ColorRGBA)colorPtr[fy * size.x + cx]) / 2,
 				cyc = ((ColorRGBA)colorPtr[cy * size.x + fx] + (ColorRGBA)colorPtr[cy * size.x + cx]) / 2;
 			return (fyc + cyc) / 2;
@@ -277,6 +256,7 @@ METALLIC_TRANSPARENT_INTERACT:
 		case eUnityFilterMode::Trilinear:
 		default:
 			ASSERT(false);
+			return ColorRGBA(0, 0, 0, 0);
 		}
 #else // if __CUDA_ARCH__
 		float4 tex = tex2D<float4>((cudaTextureObject_t)pixelPtr, uv.x, uv.y);
@@ -308,6 +288,7 @@ METALLIC_TRANSPARENT_INTERACT:
 		case eUnityFilterMode::Trilinear:
 		default:
 			ASSERT(false);
+			return ColorRGBA(0, 0, 0, 0);
 		}
 #else // if __CUDA_ARCH__
 		float4 tex;
